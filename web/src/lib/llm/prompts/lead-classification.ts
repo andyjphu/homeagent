@@ -17,11 +17,10 @@ Extract the following fields (set to null if not mentioned):
 
 Respond with a JSON object containing these fields.`;
 
-export const EMAIL_CLASSIFICATION_PROMPT = `You are a real estate email classifier. Determine if an inbound email is:
-1. A potential new buyer lead (someone expressing interest in buying a home)
-2. Deal-relevant (related to an existing transaction)
-3. Noise (newsletters, spam, internal communications, listing agent marketing)
+export const EMAIL_CLASSIFICATION_PROMPT = `You are a real estate email classifier. Classify each email into one of these categories:
+1. "new_lead" — someone expressing interest in buying a home (potential new buyer lead)
+2. "deal_relevant" — related to an existing transaction or active deal
+3. "action_required" — requires the agent to take action (showing request, document needed, deadline, question needing response)
+4. "noise" — newsletters, spam, marketing, internal communications, no action needed
 
-For potential leads, extract any buyer intent signals and contact information.
-
-Respond with JSON: { "classification": "new_lead" | "deal_relevant" | "noise", "confidence": "high" | "medium" | "low", "reasoning": "..." }`;
+Respond with JSON: { "classification": "new_lead" | "deal_relevant" | "action_required" | "noise", "confidence": "high" | "medium" | "low", "reasoning": "brief explanation" }`;

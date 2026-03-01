@@ -1,5 +1,7 @@
 # HomeAgent — Complete Product Framework
 
+> **Read this first:** Phases 1–13 below describe the **long-term vision**, not the current product. Many phases reference Zillow scraping, full AI automation, and real-time call transcription that are not implemented and, in some cases, have been deliberately deprioritized. For current build priorities and what's actually being worked on, see [`CLAUDE.md`](../CLAUDE.md) in the project root and the [Strategic Addendum](#strategic-addendum-march-2026) at the end of this document.
+
 ---
 
 # The Pitch (10 seconds)

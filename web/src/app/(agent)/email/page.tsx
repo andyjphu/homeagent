@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Mail, Plug } from "lucide-react";
 import Link from "next/link";
+import { ScanButton } from "@/components/email/scan-button";
 
 export default async function EmailPage() {
   const supabase = await createClient() as any;
@@ -60,9 +61,7 @@ export default async function EmailPage() {
               : "never"}
           </p>
         </div>
-        <Button variant="outline" size="sm">
-          Scan Now
-        </Button>
+        <ScanButton />
       </div>
 
       <div className="space-y-3">

@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Mail, Calendar, CheckCircle, XCircle } from "lucide-react";
+import { Mail, Calendar, CheckCircle } from "lucide-react";
+import { GmailConnectButton } from "@/components/email/gmail-connect-button";
 
 export default async function SettingsPage() {
   const supabase = await createClient() as any;
@@ -79,21 +80,7 @@ export default async function SettingsPage() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {agent.gmail_connected ? (
-                <>
-                  <Badge variant="default" className="gap-1">
-                    <CheckCircle className="h-3 w-3" />
-                    Connected
-                  </Badge>
-                  <Button variant="outline" size="sm">
-                    Disconnect
-                  </Button>
-                </>
-              ) : (
-                <Button size="sm">Connect Gmail</Button>
-              )}
-            </div>
+            <GmailConnectButton isConnected={agent.gmail_connected} />
           </div>
 
           <div className="flex items-center justify-between p-3 rounded-lg border">

@@ -1,5 +1,12 @@
 # HomeAgent — Claude Code Build Prompts
 
+> **Warning (March 2026):** Many prompts below reference outdated assumptions — Zillow scraping via Browser Use, Claude Sonnet/Opus as the LLM layer, and "AI-powered intelligence layer" positioning. The project has shifted:
+> - **No scraping.** Property data comes from agent manual entry (MVP) or MLS APIs (future). Zillow/Redfin scraping is prohibited.
+> - **AI is optional.** LLM features (Cerebras + Gemini) are enhancements, not the product. The app must work without them.
+> - **Focus is narrow.** Tier 1 = agent command center + buyer dashboard. Everything else is Tier 2 (basic stubs) or Tier 3 (future).
+>
+> See [`CLAUDE.md`](../CLAUDE.md) for current direction before running these prompts. Treat them as reference material, not instructions.
+
 > **How to use this:** Run these prompts sequentially in Claude Code sessions. Each prompt is scoped to ~1 session of work. Later prompts reference earlier ones. Adjust the tech stack choices if you have preferences — these defaults are opinionated toward speed-to-demo.
 
 ---

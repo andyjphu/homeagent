@@ -53,7 +53,7 @@ export async function POST(request: Request) {
 
     console.log("[email-scan] agent:", agent.id, "email:", agent.email, "after:", after, "rescan:", rescan);
 
-    const emails = await fetchRecentEmails(auth, agent.email, 30, after);
+    const emails = await fetchRecentEmails(auth, agent.email, 15, after);
 
     console.log("[email-scan] fetched", emails.length, "emails from Gmail");
 
@@ -80,21 +80,26 @@ export async function POST(request: Request) {
     let processed = 0;
     const errors: string[] = [];
 
-    for (const email of newEmails) {
-      try {
-        // Try LLM classification, but don't require it
-        let classification: ClassificationResult | null = null;
+    // Classify all emails in parallel, then insert
+    const classifications = await Promise.all(
+      newEmails.map(async (email) => {
         try {
-          classification = await llmJSON<ClassificationResult>(
+          return await llmJSON<ClassificationResult>(
             "email_classification",
             EMAIL_CLASSIFICATION_PROMPT,
             `Subject: ${email.subject}\nFrom: ${email.from}\nTo: ${email.to}\n\n${email.body.slice(0, 2000)}`
           );
         } catch (llmError) {
-          console.error(`[email-scan] LLM classification failed for ${email.id}:`, llmError);
           errors.push(`LLM failed for "${email.subject}": ${llmError instanceof Error ? llmError.message : "unknown"}`);
+          return null;
         }
+      })
+    );
 
+    for (let i = 0; i < newEmails.length; i++) {
+      const email = newEmails[i];
+      const classification = classifications[i];
+      try {
         const { data: comm } = await admin
           .from("communications")
           .insert({

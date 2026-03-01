@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Mail, Loader2, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
+import { Mail, Loader2, RefreshCw } from "lucide-react";
 
 interface GmailMessage {
   id: string;
@@ -80,73 +79,57 @@ export function EmailInbox() {
   }
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-sm text-muted-foreground">{emails.length} emails from the last 14 days</p>
-        <Button variant="ghost" size="sm" onClick={fetchEmails}>
-          <RefreshCw className="h-4 w-4 mr-1" />
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs text-muted-foreground">{emails.length} emails &middot; last 14 days</p>
+        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={fetchEmails}>
+          <RefreshCw className="h-3 w-3 mr-1" />
           Refresh
         </Button>
       </div>
-      {emails.map((email) => {
-        const isExpanded = expandedId === email.id;
-        const fromName = email.from.replace(/<.*>/, "").trim() || email.from;
-        return (
-          <Card
-            key={email.id}
-            className="cursor-pointer hover:bg-accent/50 transition-colors"
-            onClick={() => setExpandedId(isExpanded ? null : email.id)}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge variant="outline" className="text-xs shrink-0">
-                      {email.direction}
-                    </Badge>
-                    <span className="text-sm font-medium truncate">
-                      {email.direction === "inbound" ? fromName : email.to}
-                    </span>
-                  </div>
-                  <p className="font-medium truncate">
-                    {email.subject || "(no subject)"}
-                  </p>
-                  {!isExpanded && (
-                    <p className="text-sm text-muted-foreground truncate mt-1">
-                      {email.snippet}
-                    </p>
+      <div className="border rounded-lg divide-y">
+        {emails.map((email) => {
+          const isExpanded = expandedId === email.id;
+          const fromName = email.from.replace(/<.*>/, "").trim() || email.from;
+          const dateStr = new Date(email.date).toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+          });
+          return (
+            <div
+              key={email.id}
+              className="cursor-pointer hover:bg-accent/50 transition-colors"
+              onClick={() => setExpandedId(isExpanded ? null : email.id)}
+            >
+              <div className="flex items-center gap-3 px-3 py-2">
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${email.direction === "inbound" ? "bg-blue-500" : "bg-emerald-500"}`} />
+                <span className="text-sm font-medium w-40 truncate shrink-0">
+                  {email.direction === "inbound" ? fromName : email.to}
+                </span>
+                <span className="text-sm truncate flex-1">
+                  <span className="font-medium">{email.subject || "(no subject)"}</span>
+                  {!isExpanded && email.snippet && (
+                    <span className="text-muted-foreground"> — {email.snippet}</span>
                   )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <p className="text-xs text-muted-foreground whitespace-nowrap">
-                    {new Date(email.date).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </p>
-                  {isExpanded ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </div>
+                </span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">{dateStr}</span>
               </div>
               {isExpanded && (
-                <div className="mt-3 pt-3 border-t">
-                  <div className="text-xs text-muted-foreground space-y-1 mb-3">
-                    <p>From: {email.from}</p>
-                    <p>To: {email.to}</p>
-                    <p>Date: {new Date(email.date).toLocaleString()}</p>
+                <div className="px-3 pb-3 pt-1 border-t bg-muted/30">
+                  <div className="text-xs text-muted-foreground flex gap-4 mb-2">
+                    <span>From: {email.from}</span>
+                    <span>To: {email.to}</span>
+                    <span>{new Date(email.date).toLocaleString()}</span>
                   </div>
-                  <pre className="text-sm whitespace-pre-wrap font-sans bg-muted p-3 rounded max-h-80 overflow-y-auto">
+                  <pre className="text-sm whitespace-pre-wrap font-sans bg-background p-3 rounded border max-h-72 overflow-y-auto">
                     {email.body || "(no text content)"}
                   </pre>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        );
-      })}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

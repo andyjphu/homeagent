@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Mail, Plug } from "lucide-react";
+import { Plug } from "lucide-react";
 import { ScanButton } from "@/components/email/scan-button";
 import { EmailInbox } from "@/components/email/email-inbox";
 
@@ -71,56 +71,43 @@ export default async function EmailPage() {
 
       {communications && communications.length > 0 && (
         <div>
-          <h2 className="text-lg font-semibold mb-3">Scanned &amp; Classified</h2>
-          <div className="space-y-3">
+          <h2 className="text-lg font-semibold mb-2">Classified</h2>
+          <div className="border rounded-lg divide-y">
             {communications.map((comm: any) => {
-              const analysis = (comm.ai_analysis || {}) as any;
+              const dateStr = new Date(comm.occurred_at).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+              });
               return (
-                <Card key={comm.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1 flex-1">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline">{comm.direction}</Badge>
-                          {comm.classification && (
-                            <Badge
-                              variant={
-                                comm.classification === "new_lead"
-                                  ? "destructive"
-                                  : comm.classification === "action_required"
-                                  ? "default"
-                                  : "secondary"
-                              }
-                            >
-                              {comm.classification.replace(/_/g, " ")}
-                            </Badge>
-                          )}
-                          {comm.buyers?.full_name && (
-                            <span className="text-sm text-muted-foreground">
-                              {comm.buyers.full_name}
-                            </span>
-                          )}
-                        </div>
-                        {comm.subject && (
-                          <p className="font-medium">{comm.subject}</p>
-                        )}
-                        <p className="text-sm text-muted-foreground">
-                          {comm.direction === "inbound"
-                            ? `From: ${comm.from_address}`
-                            : `To: ${comm.to_address}`}
-                        </p>
-                        {analysis.summary && (
-                          <p className="text-sm bg-muted p-2 rounded mt-2">
-                            {analysis.summary}
-                          </p>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground whitespace-nowrap ml-4">
-                        {new Date(comm.occurred_at).toLocaleString()}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
+                <div key={comm.id} className="flex items-center gap-3 px-3 py-2">
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${comm.direction === "inbound" ? "bg-blue-500" : "bg-emerald-500"}`} />
+                  {comm.classification && (
+                    <Badge
+                      variant={
+                        comm.classification === "new_lead"
+                          ? "destructive"
+                          : comm.classification === "action_required"
+                          ? "default"
+                          : "secondary"
+                      }
+                      className="text-[10px] px-1.5 py-0 shrink-0"
+                    >
+                      {comm.classification.replace(/_/g, " ")}
+                    </Badge>
+                  )}
+                  <span className="text-sm w-36 truncate shrink-0 text-muted-foreground">
+                    {comm.direction === "inbound" ? comm.from_address : comm.to_address}
+                  </span>
+                  <span className="text-sm font-medium truncate flex-1">
+                    {comm.subject || "(no subject)"}
+                  </span>
+                  {comm.buyers?.full_name && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
+                      {comm.buyers.full_name}
+                    </Badge>
+                  )}
+                  <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">{dateStr}</span>
+                </div>
               );
             })}
           </div>

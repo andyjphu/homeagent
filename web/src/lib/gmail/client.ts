@@ -40,15 +40,22 @@ export async function fetchRecentEmails(
   const messageIds = listResponse.data.messages || [];
   if (messageIds.length === 0) return [];
 
-  const messages = await Promise.all(
-    messageIds.map((msg) =>
-      gmail.users.messages.get({
-        userId: "me",
-        id: msg.id!,
-        format: "full",
-      })
-    )
-  );
+  // Fetch in batches of 5 to avoid rate limits and timeouts
+  const BATCH_SIZE = 5;
+  const messages = [];
+  for (let i = 0; i < messageIds.length; i += BATCH_SIZE) {
+    const batch = messageIds.slice(i, i + BATCH_SIZE);
+    const results = await Promise.all(
+      batch.map((msg) =>
+        gmail.users.messages.get({
+          userId: "me",
+          id: msg.id!,
+          format: "full",
+        })
+      )
+    );
+    messages.push(...results);
+  }
 
   return messages
     .map((res) => parseMessage(res.data, agentEmail))

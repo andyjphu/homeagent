@@ -1,9 +1,11 @@
 import { Suspense } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { notFound } from "next/navigation";
-import { Building2 } from "lucide-react";
+import { Building2, ClipboardList } from "lucide-react";
+import Link from "next/link";
 import { FilterPanel } from "@/components/dashboard/filter-panel";
 import { DealTimeline } from "@/components/dashboard/deal-timeline";
 import { PropertyList } from "@/components/dashboard/property-list";
@@ -178,6 +180,26 @@ export default async function BuyerDashboardPage({
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
         {/* Deal timeline */}
         {deals && deals.length > 0 && <DealTimeline deal={deals[0]} />}
+
+        {/* Intake CTA banner - shown when buyer hasn't completed intake */}
+        {!intent.timeline && !intent.preferred_areas?.length && !intent.priorities_ranked?.length && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="py-4 flex items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <ClipboardList className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-medium text-sm">Help us find your perfect home</p>
+                  <p className="text-xs text-muted-foreground">
+                    Complete a quick questionnaire so {agentName || "your agent"} can start searching for you.
+                  </p>
+                </div>
+              </div>
+              <Link href={`/d/${dashboardToken}/intake`}>
+                <Button size="sm">Get Started</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Filter panel */}
         <FilterPanel

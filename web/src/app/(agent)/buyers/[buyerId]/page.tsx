@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   ExternalLink,
   Building2,
+  ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -58,6 +59,8 @@ export default async function BuyerDetailPage({
   const intent = (buyer.intent_profile || {}) as any;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const dashboardUrl = `${appUrl}/d/${buyer.dashboard_token}`;
+  const intakeUrl = `${appUrl}/d/${buyer.dashboard_token}/intake`;
+  const hasCompletedIntake = !!(intent.timeline || intent.preferred_areas?.length || intent.priorities_ranked?.length);
 
   return (
     <div className="space-y-6">
@@ -187,6 +190,33 @@ export default async function BuyerDetailPage({
               </div>
               <p className="text-xs text-muted-foreground mt-2">
                 Share this link with {buyer.full_name} so they can view properties and provide feedback.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ClipboardList className="h-4 w-4" />
+                  Intake Form Link
+                </CardTitle>
+                {hasCompletedIntake ? (
+                  <Badge variant="default">Completed</Badge>
+                ) : (
+                  <Badge variant="outline">Not yet submitted</Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2">
+                <code className="text-xs bg-muted px-2 py-1 rounded flex-1 truncate">
+                  {intakeUrl}
+                </code>
+                <CopyLinkButton text={intakeUrl} />
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Share this link with {buyer.full_name} to collect their home search preferences before you start researching.
               </p>
             </CardContent>
           </Card>

@@ -30,15 +30,19 @@ export async function GET() {
 
     // Fetch classifications for these emails from DB
     const gmailIds = emails.map((e) => e.id);
-    const { data: classifications } = await admin
-      .from("communications")
-      .select("gmail_message_id, classification, ai_analysis, buyers(full_name)")
-      .eq("agent_id", agent.id)
-      .in("gmail_message_id", gmailIds);
 
-    const classMap = new Map(
-      (classifications || []).map((c: any) => [c.gmail_message_id, c])
-    );
+    let classMap = new Map();
+    if (gmailIds.length > 0) {
+      const { data: classifications } = await admin
+        .from("communications")
+        .select("gmail_message_id, classification, ai_analysis, buyers(full_name)")
+        .eq("agent_id", agent.id)
+        .in("gmail_message_id", gmailIds);
+
+      classMap = new Map(
+        (classifications || []).map((c: any) => [c.gmail_message_id, c])
+      );
+    }
 
     const merged = emails.map((email) => {
       const cls = classMap.get(email.id) as any;
@@ -52,7 +56,8 @@ export async function GET() {
 
     return NextResponse.json({ emails: merged });
   } catch (err) {
-    console.error("[email-inbox] error:", err);
-    return NextResponse.json({ error: "Failed to fetch emails" }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    console.error("[email-inbox] error:", msg, err);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

@@ -65,13 +65,22 @@ export async function POST() {
     const newEmails = emails.filter((e) => !existingIds.has(e.id));
 
     let processed = 0;
+    const errors: string[] = [];
+
     for (const email of newEmails) {
       try {
-        const classification = await llmJSON<ClassificationResult>(
-          "email_classification",
-          EMAIL_CLASSIFICATION_PROMPT,
-          `Subject: ${email.subject}\nFrom: ${email.from}\nTo: ${email.to}\n\n${email.body.slice(0, 2000)}`
-        );
+        // Try LLM classification, but don't require it
+        let classification: ClassificationResult | null = null;
+        try {
+          classification = await llmJSON<ClassificationResult>(
+            "email_classification",
+            EMAIL_CLASSIFICATION_PROMPT,
+            `Subject: ${email.subject}\nFrom: ${email.from}\nTo: ${email.to}\n\n${email.body.slice(0, 2000)}`
+          );
+        } catch (llmError) {
+          console.error(`[email-scan] LLM classification failed for ${email.id}:`, llmError);
+          errors.push(`LLM failed for "${email.subject}": ${llmError instanceof Error ? llmError.message : "unknown"}`);
+        }
 
         const { data: comm } = await admin
           .from("communications")
@@ -85,9 +94,9 @@ export async function POST() {
             to_address: email.to,
             gmail_message_id: email.id,
             gmail_thread_id: email.threadId,
-            classification: classification.classification,
-            ai_analysis: classification,
-            is_processed: true,
+            classification: classification?.classification || null,
+            ai_analysis: classification || null,
+            is_processed: !!classification,
             processed_at: new Date().toISOString(),
             occurred_at: email.date,
           })
@@ -96,6 +105,7 @@ export async function POST() {
 
         if (
           email.direction === "inbound" &&
+          classification?.classification &&
           classification.classification !== "noise" &&
           comm
         ) {
@@ -118,7 +128,9 @@ export async function POST() {
 
         processed++;
       } catch (emailError) {
-        console.error(`Failed to process email ${email.id}:`, emailError);
+        const msg = emailError instanceof Error ? emailError.message : "unknown";
+        console.error(`[email-scan] Failed to process email ${email.id}:`, emailError);
+        errors.push(`DB insert failed for "${email.subject}": ${msg}`);
       }
     }
 
@@ -131,6 +143,7 @@ export async function POST() {
       processed,
       total: newEmails.length,
       skipped: emails.length - newEmails.length,
+      ...(errors.length > 0 ? { errors } : {}),
     });
   } catch (err) {
     console.error("Email scan error:", err);

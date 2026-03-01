@@ -17,7 +17,10 @@ export function ScanButton() {
       const res = await fetch("/api/email/scan", { method: "POST" });
       const data = await res.json();
       if (res.ok) {
-        setResult(`Processed ${data.processed} new email(s)`);
+        let msg = `Processed ${data.processed} of ${data.total} email(s)`;
+        if (data.skipped) msg += ` (${data.skipped} already scanned)`;
+        if (data.errors?.length) msg += ` — ${data.errors[0]}`;
+        setResult(msg);
         router.refresh();
       } else {
         setResult(data.error || "Scan failed");

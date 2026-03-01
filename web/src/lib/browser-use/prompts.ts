@@ -8,34 +8,53 @@ export interface ZillowSearchIntent {
 }
 
 /**
- * Build the prompt for Zillow search results.
- * Goes directly to zillow.com and uses the search bar (matches updated Python agent).
+ * Build a Zillow search URL with filters pre-applied.
+ * This skips the search bar, autocomplete, and manual filter clicking entirely.
+ * Zillow URL format: /homes/{location}_rb/ with filterState query params.
  */
-export function buildZillowSearchPrompt(intent: ZillowSearchIntent): string {
+function buildZillowUrl(intent: ZillowSearchIntent): string {
   const {
     location,
     price_min = 300000,
     price_max = 750000,
     beds_min = 3,
     baths_min = 2,
-    home_type = "",
   } = intent;
 
-  const homeTypeInstruction = home_type
-    ? `- Home type: ${home_type}\n`
-    : "";
+  // Zillow uses slug-style location in the path: "Austin, TX" -> "Austin,-TX"
+  const locationSlug = location.replace(/\s+/g, "-").replace(/,\s*/g, ",-");
 
-  return `Go to https://www.zillow.com/ and search for "${location}" in the search bar.
-Wait for autocomplete suggestions to appear, then click the suggestion that best matches "${location}".
+  const filterState: Record<string, any> = {
+    price: { min: price_min, max: price_max },
+    beds: { min: beds_min },
+    baths: { min: baths_min },
+    sort: { value: "globalrelevanceex" },
+  };
 
-Once on the Zillow search results page for ${location}, apply these filters:
-- Price: $${price_min.toLocaleString()} to $${price_max.toLocaleString()}
-- Beds: ${beds_min}+
-- Baths: ${baths_min}+
-${homeTypeInstruction}
+  const params = encodeURIComponent(JSON.stringify(filterState));
+  return `https://www.zillow.com/homes/${locationSlug}_rb/?searchQueryState={"filterState":${JSON.stringify(filterState)}}`;
+}
+
+/**
+ * Build the prompt for Zillow search results.
+ * Uses a pre-built URL with filters so Browser Use just loads and scrapes — no UI interaction needed.
+ */
+export function buildZillowSearchPrompt(intent: ZillowSearchIntent): string {
+  const { location } = intent;
+  const url = buildZillowUrl(intent);
+
+  return `Go to this Zillow search URL: ${url}
+
+This page should show search results for ${location} with price/beds/baths filters already applied.
+
+If the URL doesn't load results (e.g. Zillow redirects to homepage or shows no results), fall back to:
+1. Go to https://www.zillow.com/
+2. Search for "${location}" in the search bar
+3. Click the best matching autocomplete suggestion
+
 If you encounter any human verification or CAPTCHA challenge, wait a few seconds and try to complete it.
 
-Scroll through ALL the results on this page. For each listing card visible, extract:
+Scroll through the results on this page. For each listing card visible, extract:
 - address (full street address)
 - price (as integer, no $ or commas)
 - beds (integer)
@@ -49,9 +68,13 @@ Return the results as a JSON array. Return ONLY the JSON array, no other text.`;
 
 /**
  * Build the prompt for GreatSchools school search.
+ * Uses direct search URL to skip homepage navigation.
  */
 export function buildSchoolSearchPrompt(address: string): string {
-  return `Go to greatschools.org and search for schools near this address: ${address}
+  const query = encodeURIComponent(address);
+  return `Go to https://www.greatschools.org/search/search.page?q=${query}
+
+This should show schools near: ${address}
 
 Look for the assigned or nearby schools for elementary, middle, and high school levels.
 
@@ -74,11 +97,19 @@ Return ONLY the JSON object, no other text.`;
 
 /**
  * Build the prompt for WalkScore lookup.
+ * Uses direct address URL to skip the search step.
  */
 export function buildWalkScorePrompt(address: string): string {
-  return `Go to walkscore.com and search for this address: ${address}
+  // WalkScore URL format: /score/{address-slug}
+  const slug = address
+    .replace(/[#,.']/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+  return `Go to https://www.walkscore.com/score/${encodeURIComponent(slug)}
 
-Wait for the results to load. Extract these scores from the page:
+If that URL doesn't show scores, go to https://www.walkscore.com/ and search for: ${address}
+
+Extract these scores from the page:
 - walk_score (0-100 integer)
 - transit_score (0-100 integer, null if not available)
 - bike_score (0-100 integer, null if not available)
@@ -95,14 +126,14 @@ Return ONLY the JSON object, no other text.`;
 
 /**
  * Build the prompt for Google Maps commute calculation.
+ * Uses direct directions URL with origin/destination pre-filled.
  */
 export function buildCommutePrompt(address: string, workplace: string): string {
-  return `Go to Google Maps (maps.google.com).
-Click on "Directions".
-Set the origin to: ${address}
-Set the destination to: ${workplace}
+  const origin = encodeURIComponent(address);
+  const dest = encodeURIComponent(workplace);
+  return `Go to https://www.google.com/maps/dir/${origin}/${dest}/
 
-Make sure the travel mode is set to "Driving". Look for the departure time option and set it to "Depart at" 8:00 AM on a weekday (e.g. next Monday).
+This should show driving directions from "${address}" to "${workplace}".
 
 Extract the driving commute information:
 - drive_minutes (estimated drive time in minutes as an integer)

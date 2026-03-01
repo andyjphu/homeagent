@@ -433,11 +433,10 @@ async function handleScoringStage(
     return finishPipeline(taskId, outputData, 0);
   }
 
-  // Score each property using existing LLM infrastructure
-  let scoredCount = 0;
+  // Score all properties in parallel using LLM
   const scoreResults: { property_id: string; match_score: number }[] = [];
 
-  for (const property of properties) {
+  const scorePromises = properties.map(async (property: any) => {
     const context = `
 BUYER INTENT PROFILE:
 ${JSON.stringify(intentProfile, null, 2)}
@@ -465,7 +464,7 @@ Description: ${property.listing_description ?? "N/A"}
         score_breakdown: any;
       }>("property_scoring", PROPERTY_SCORING_PROMPT, context);
 
-      if (typeof result.match_score !== "number") continue;
+      if (typeof result.match_score !== "number") return;
 
       await adminSupabase
         .from("buyer_property_scores")
@@ -480,7 +479,6 @@ Description: ${property.listing_description ?? "N/A"}
           { onConflict: "buyer_id,property_id" }
         );
 
-      scoredCount++;
       scoreResults.push({
         property_id: property.id,
         match_score: result.match_score,
@@ -488,7 +486,10 @@ Description: ${property.listing_description ?? "N/A"}
     } catch (err: any) {
       console.error(`Failed to score property ${property.id}:`, err.message);
     }
-  }
+  });
+
+  await Promise.all(scorePromises);
+  const scoredCount = scoreResults.length;
 
   await logEvent(taskId, "stage_scoring_done", {
     scored: scoredCount,

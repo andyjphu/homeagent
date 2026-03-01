@@ -30,12 +30,12 @@ export default async function CallsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Call Intelligence</h1>
+          <h1 className="text-2xl font-bold">Call Log</h1>
           <p className="text-muted-foreground">
-            Upload call recordings for AI analysis and debriefs
+            Track calls with buyers and leads
           </p>
         </div>
-        <Button>
+        <Button disabled title="Coming soon">
           <Upload className="h-4 w-4 mr-2" />
           Upload Recording
         </Button>
@@ -47,7 +47,7 @@ export default async function CallsPage() {
             <CardContent className="py-12 text-center">
               <Phone className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">
-                No call recordings analyzed yet. Upload a recording to get started.
+                No calls logged yet.
               </p>
             </CardContent>
           </Card>

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Mail, Loader2, RefreshCw } from "lucide-react";
+import { Mail, Loader2, RefreshCw, UserPlus } from "lucide-react";
 
 interface EmailMessage {
   id: string;
@@ -16,6 +16,7 @@ interface EmailMessage {
   snippet: string;
   body: string;
   direction: "inbound" | "outbound";
+  communicationId: string | null;
   classification: string | null;
   aiAnalysis: { reasoning?: string } | null;
   buyerName: string | null;
@@ -88,6 +89,8 @@ export function EmailInbox() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [creatingLead, setCreatingLead] = useState<string | null>(null);
+  const [createdLeads, setCreatedLeads] = useState<Set<string>>(new Set());
 
   const fetchEmails = useCallback(async () => {
     setLoading(true);
@@ -238,8 +241,43 @@ export function EmailInbox() {
                     </div>
                     {email.aiAnalysis?.reasoning && (
                       <p className="text-xs text-muted-foreground bg-background border rounded px-2 py-1.5 mb-2">
-                        AI: {email.aiAnalysis.reasoning}
+                        <span className="font-medium">Explanation:</span> {email.aiAnalysis.reasoning}
                       </p>
+                    )}
+                    {email.classification === "new_lead" && email.communicationId && !createdLeads.has(email.communicationId) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7 mb-2"
+                        disabled={creatingLead === email.communicationId}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          setCreatingLead(email.communicationId);
+                          try {
+                            const res = await fetch("/api/email/create-lead", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ communicationId: email.communicationId }),
+                            });
+                            if (res.ok || res.status === 409) {
+                              setCreatedLeads((prev) => new Set(prev).add(email.communicationId!));
+                            }
+                          } catch {
+                            // silent
+                          }
+                          setCreatingLead(null);
+                        }}
+                      >
+                        {creatingLead === email.communicationId ? (
+                          <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                        ) : (
+                          <UserPlus className="h-3 w-3 mr-1" />
+                        )}
+                        Create Lead
+                      </Button>
+                    )}
+                    {email.communicationId && createdLeads.has(email.communicationId) && (
+                      <p className="text-xs text-emerald-600 mb-2">Lead created</p>
                     )}
                     <pre className="text-sm whitespace-pre-wrap font-sans bg-background p-3 rounded border max-h-72 overflow-y-auto">
                       {email.body || "(no text content)"}

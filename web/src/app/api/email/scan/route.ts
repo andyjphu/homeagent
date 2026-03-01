@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthedClient } from "@/lib/gmail/tokens";
 import { fetchRecentEmails } from "@/lib/gmail/client";
 import { llmJSON } from "@/lib/llm/router";
-import { EMAIL_CLASSIFICATION_PROMPT } from "@/lib/llm/prompts/lead-classification";
+import { EMAIL_CLASSIFICATION_PROMPT, LEAD_CLASSIFICATION_PROMPT } from "@/lib/llm/prompts/lead-classification";
 
 interface ClassificationResult {
   classification: "deal_relevant" | "new_lead" | "noise" | "action_required";
@@ -142,6 +142,40 @@ export async function POST(request: Request) {
               classification.classification === "action_required" ||
               classification.classification === "new_lead",
           });
+        }
+
+        // Auto-create draft lead for new_lead emails
+        if (classification?.classification === "new_lead" && comm) {
+          try {
+            let extractedInfo: Record<string, any> = {};
+            try {
+              extractedInfo = await llmJSON(
+                "lead_classification",
+                LEAD_CLASSIFICATION_PROMPT,
+                email.body.slice(0, 3000)
+              );
+            } catch {
+              // LLM extraction is optional
+            }
+
+            const senderName = email.from.replace(/<.*>/, "").trim() || null;
+            const senderEmailMatch = email.from.match(/<(.+?)>/);
+            const senderEmail = senderEmailMatch ? senderEmailMatch[1] : email.from;
+
+            await admin.from("leads").insert({
+              agent_id: agent.id,
+              source: "email",
+              status: "draft",
+              confidence: classification.confidence,
+              name: extractedInfo.name || senderName,
+              email: senderEmail,
+              raw_source_content: email.body.slice(0, 5000),
+              extracted_info: extractedInfo,
+              source_communication_id: comm.id,
+            });
+          } catch (leadError) {
+            console.error("[email-scan] Failed to auto-create lead:", leadError);
+          }
         }
 
         processed++;

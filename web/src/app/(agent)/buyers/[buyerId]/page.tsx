@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ResearchTrigger } from "@/components/buyers/research-trigger";
+import { SendToBuyerToggle } from "@/components/buyers/send-to-buyer-toggle";
 
 export default async function BuyerDetailPage({
   params,
@@ -238,11 +239,12 @@ export default async function BuyerDetailPage({
                         </p>
                       )}
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex flex-col items-end">
                       <div className="text-2xl font-bold text-primary">
                         {score.match_score}
                       </div>
                       <p className="text-xs text-muted-foreground">match score</p>
+                      <SendToBuyerToggle scoreId={score.id} initialSent={score.is_sent_to_buyer} />
                     </div>
                   </div>
                 </CardContent>

@@ -1,12 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Mail, Calendar, CheckCircle } from "lucide-react";
 import { GmailConnectButton } from "@/components/email/gmail-connect-button";
+import { ProfileForm } from "@/components/settings/profile-form";
 
 export default async function SettingsPage() {
   const supabase = await createClient() as any;
@@ -31,36 +28,8 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle className="text-base">Profile</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Full Name</Label>
-              <Input defaultValue={agent.full_name} disabled />
-            </div>
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input defaultValue={agent.email} disabled />
-            </div>
-            <div className="space-y-2">
-              <Label>Phone</Label>
-              <Input defaultValue={agent.phone || ""} placeholder="(214) 555-0123" />
-            </div>
-            <div className="space-y-2">
-              <Label>Brokerage</Label>
-              <Input
-                defaultValue={agent.brokerage || ""}
-                placeholder="Century 21"
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Email Signature</Label>
-            <Textarea
-              defaultValue={agent.email_signature || ""}
-              placeholder="Best regards,&#10;Mike Johnson&#10;Century 21 Realty"
-              rows={3}
-            />
-          </div>
+        <CardContent>
+          <ProfileForm agent={agent} />
         </CardContent>
       </Card>
 
@@ -93,18 +62,9 @@ export default async function SettingsPage() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {agent.calendar_connected ? (
-                <Badge variant="default" className="gap-1">
-                  <CheckCircle className="h-3 w-3" />
-                  Connected
-                </Badge>
-              ) : (
-                <Button size="sm" variant="outline">
-                  Coming Soon
-                </Button>
-              )}
-            </div>
+            <Badge variant="outline" className="text-muted-foreground">
+              Coming Soon
+            </Badge>
           </div>
         </CardContent>
       </Card>
@@ -117,11 +77,19 @@ export default async function SettingsPage() {
         <CardContent className="text-sm space-y-2">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Fast Analysis (Cerebras)</span>
-            <Badge variant="default">Connected</Badge>
+            {process.env.CEREBRAS_API_KEY ? (
+              <Badge variant="default" className="gap-1"><CheckCircle className="h-3 w-3" />Connected</Badge>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground">Not configured</Badge>
+            )}
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Deep Analysis (Gemini)</span>
-            <Badge variant="default">Connected</Badge>
+            {process.env.GEMINI_API_KEY ? (
+              <Badge variant="default" className="gap-1"><CheckCircle className="h-3 w-3" />Connected</Badge>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground">Not configured</Badge>
+            )}
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Communication Tone</span>

@@ -35,7 +35,7 @@ export async function GET() {
     if (gmailIds.length > 0) {
       const { data: classifications } = await admin
         .from("communications")
-        .select("gmail_message_id, classification, ai_analysis, buyers(full_name)")
+        .select("id, gmail_message_id, classification, ai_analysis, buyers(full_name)")
         .eq("agent_id", agent.id)
         .in("gmail_message_id", gmailIds);
 
@@ -48,6 +48,7 @@ export async function GET() {
       const cls = classMap.get(email.id) as any;
       return {
         ...email,
+        communicationId: cls?.id || null,
         classification: cls?.classification || null,
         aiAnalysis: cls?.ai_analysis || null,
         buyerName: cls?.buyers?.full_name || null,

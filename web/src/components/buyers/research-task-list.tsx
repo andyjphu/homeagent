@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Search,
   ChevronDown,
@@ -162,41 +161,18 @@ function getStageDescription(task: Task): string | null {
 }
 
 function LivePreview({ liveUrl }: { liveUrl: string }) {
-  const [showIframe, setShowIframe] = useState(false);
-
   return (
-    <div className="mt-2 space-y-2">
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-7 text-xs"
-          onClick={() => setShowIframe(!showIframe)}
-        >
-          <Eye className="h-3 w-3 mr-1" />
-          {showIframe ? "Hide preview" : "Watch live"}
-        </Button>
-        <a
-          href={liveUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-primary hover:underline flex items-center gap-1"
-        >
-          Open in new tab
-          <ExternalLink className="h-3 w-3" />
-        </a>
-      </div>
-      {/* Keep iframe mounted but hidden so it doesn't reset on re-render */}
-      <div
-        className={`rounded-md border overflow-hidden bg-muted ${showIframe ? "" : "hidden"}`}
+    <div className="mt-2">
+      <a
+        href={liveUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
       >
-        <iframe
-          src={liveUrl}
-          className="w-full h-[300px]"
-          title="Live browser preview"
-          sandbox="allow-scripts allow-same-origin"
-        />
-      </div>
+        <Eye className="h-3.5 w-3.5" />
+        Watch live
+        <ExternalLink className="h-3 w-3" />
+      </a>
     </div>
   );
 }

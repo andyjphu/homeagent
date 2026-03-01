@@ -1,10 +1,10 @@
 import asyncio
 import json
 import os
+import re
 from datetime import datetime
 from typing import Any
-from browser_use.llm.google.chat import ChatGoogle
-from browser_use.browser.session import BrowserSession
+from browser_use import Agent, Browser, ChatGoogle, ChatBrowserUse, BrowserProfile
 from db.supabase_client import supabase
 from config import GEMINI_API_KEY
 
@@ -17,38 +17,110 @@ REALISTIC_USER_AGENT = (
 # Persistent profile dir so cookies/state carry over between runs
 _PROFILE_DIR = os.path.join(os.path.dirname(__file__), "..", ".browser_profile")
 
+# Chromium args that reduce automation fingerprint
+STEALTH_ARGS = [
+    "--disable-blink-features=AutomationControlled",
+    "--disable-features=AutomationControlled",
+    "--disable-infobars",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--disable-background-timer-throttling",
+    "--disable-backgrounding-occluded-windows",
+    "--disable-renderer-backgrounding",
+    "--disable-ipc-flooding-protection",
+    "--password-store=basic",
+    "--use-mock-keychain",
+]
 
-def build_llm() -> ChatGoogle:
-    """Build a Gemini LLM instance using browser-use's native ChatGoogle wrapper."""
+BROWSER_USE_API_KEY = os.getenv("BROWSER_USE_API_KEY", "")
+
+
+def build_llm():
+    """Build an LLM instance for browser-use agents.
+
+    Uses Browser Use Cloud LLM when BROWSER_USE_API_KEY is set (recommended —
+    no rate limits, optimized for browser tasks).
+    Falls back to Gemini ChatGoogle otherwise.
+    """
+    if BROWSER_USE_API_KEY:
+        return ChatBrowserUse(api_key=BROWSER_USE_API_KEY)
     return ChatGoogle(
-        model=os.getenv("BROWSER_USE_MODEL", "gemini-2.5-flash-lite"),
+        model=os.getenv("BROWSER_USE_MODEL", "gemini-2.0-flash"),
         api_key=GEMINI_API_KEY,
     )
 
 
-def build_browser_session() -> BrowserSession:
-    """Build a stealth browser session with anti-detection measures."""
+def build_browser_session(keep_alive: bool = True) -> Browser:
+    """Build a browser session for research agents.
+
+    When BROWSER_USE_API_KEY is set, uses Browser Use Cloud which provides:
+    - Stealth browser fingerprinting (bypasses bot detection)
+    - Automatic CAPTCHA solving
+    - Proxy rotation
+
+    Falls back to a local stealth Chromium session otherwise.
+
+    Args:
+        keep_alive: If True, the browser stays open after an agent run completes.
+    """
+    if BROWSER_USE_API_KEY:
+        # Cloud browser — stealth + CAPTCHA solving handled by the service
+        return Browser(
+            use_cloud=True,
+            keep_alive=keep_alive,
+            captcha_solver=True,
+            wait_between_actions=1.0,
+            minimum_wait_page_load_time=1.5,
+            wait_for_network_idle_page_load_time=2.5,
+        )
+
+    # Local browser — use stealth args and persistent profile
     os.makedirs(_PROFILE_DIR, exist_ok=True)
-    return BrowserSession(
+    return Browser(
         headless=False,
         user_agent=REALISTIC_USER_AGENT,
         disable_security=True,
         user_data_dir=_PROFILE_DIR,
         enable_default_extensions=True,
-        wait_between_actions=1.5,
-        minimum_wait_page_load_time=2.0,
-        wait_for_network_idle_page_load_time=3.0,
+        keep_alive=keep_alive,
+        captcha_solver=True,
+        args=STEALTH_ARGS,
+        wait_between_actions=1.0,
+        minimum_wait_page_load_time=1.5,
+        wait_for_network_idle_page_load_time=2.5,
     )
 
 
 class BaseResearchAgent:
     """Base class for all Browser Use research agents."""
 
-    def __init__(self, task_id: str, agent_id: str, buyer_id: str | None = None):
+    def __init__(
+        self,
+        task_id: str,
+        agent_id: str,
+        buyer_id: str | None = None,
+        browser: Browser | None = None,
+    ):
         self.task_id = task_id
         self.agent_id = agent_id
         self.buyer_id = buyer_id
+        self.browser = browser
         self.execution_log: list[dict] = []
+
+    async def ensure_browser(self) -> Browser:
+        """Return the shared browser, creating one if needed."""
+        if self.browser is None:
+            self.browser = build_browser_session(keep_alive=True)
+        return self.browser
+
+    async def close_browser(self):
+        """Shut down the browser session if we own it."""
+        if self.browser is not None:
+            try:
+                await self.browser.stop()
+            except Exception:
+                pass
+            self.browser = None
 
     async def update_status(self, status: str, **kwargs):
         update = {
@@ -130,6 +202,73 @@ class BaseResearchAgent:
             entry["buyer_id"] = self.buyer_id
         entry.update(kwargs)
         supabase.table("activity_feed").insert(entry).execute()
+
+    def extract_result(self, result) -> str | None:
+        """Extract text content from an AgentHistoryList result.
+
+        Merges final_result() and extracted_content() for best coverage.
+        """
+        texts: list[str] = []
+        if hasattr(result, "final_result"):
+            text = result.final_result()
+            if text:
+                texts.append(text)
+        if hasattr(result, "extracted_content"):
+            contents = result.extracted_content()
+            if contents:
+                texts.extend(contents)
+        if texts:
+            return "\n".join(texts)
+        return str(result) if result else None
+
+    def parse_json(self, raw: str | None):
+        """Extract JSON array or object from browser-use output.
+
+        Handles:
+        - Escaped quotes from browser-use done action (\\\" -> \")
+        - Markdown code fences
+        - JSON embedded in surrounding text
+        """
+        if not raw:
+            return None
+        text = str(raw)
+
+        # Strip markdown code fences
+        text = re.sub(r"```json\s*", "", text)
+        text = re.sub(r"```\s*", "", text)
+
+        # Unescape \" -> " (browser-use 0.12 done action escaping)
+        if '\\"' in text:
+            text = text.replace('\\"', '"')
+
+        text = text.strip()
+
+        # Direct parse
+        if text.startswith("[") or text.startswith("{"):
+            try:
+                return json.loads(text)
+            except json.JSONDecodeError:
+                pass
+
+        # Extract JSON array from surrounding text
+        start = text.find("[")
+        end = text.rfind("]") + 1
+        if start >= 0 and end > start:
+            try:
+                return json.loads(text[start:end])
+            except json.JSONDecodeError:
+                pass
+
+        # Extract JSON object from surrounding text
+        start = text.find("{")
+        end = text.rfind("}") + 1
+        if start >= 0 and end > start:
+            try:
+                return json.loads(text[start:end])
+            except json.JSONDecodeError:
+                pass
+
+        return None
 
     async def run(self, input_params: dict):
         raise NotImplementedError

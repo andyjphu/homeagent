@@ -1,7 +1,7 @@
 import asyncio
 import json
 from browser_use import Agent
-from agents.base import BaseResearchAgent, build_llm, build_browser_session
+from agents.base import BaseResearchAgent, build_llm
 from config import DEFAULT_SEARCH_DELAY_SECONDS
 
 
@@ -15,6 +15,8 @@ class WalkScoreAgent(BaseResearchAgent):
             return None
 
         self.log_event("walkscore_search_start", {"address": address})
+
+        browser = await self.ensure_browser()
 
         task = f"""Go to walkscore.com and search for this address: {address}
 
@@ -33,19 +35,16 @@ Return a JSON object:
 Return ONLY the JSON object, no other text."""
 
         try:
-            agent = Agent(task=task, llm=build_llm(), browser_session=build_browser_session())
+            agent = Agent(task=task, llm=build_llm(), browser=browser)
             result = await agent.run()
 
-            text = result.final_result() if hasattr(result, "final_result") else str(result)
-            if text:
-                start = text.find("{")
-                end = text.rfind("}") + 1
-                if start >= 0 and end > start:
-                    data = json.loads(text[start:end])
-                    self.log_event("walkscore_search_done", {"address": address, "data": data})
-                    return data
+            text = self.extract_result(result)
+            data = self.parse_json(text)
+            if isinstance(data, dict):
+                self.log_event("walkscore_search_done", {"address": address, "data": data})
+                return data
 
-            self.log_event("walkscore_parse_error", {"address": address})
+            self.log_event("walkscore_parse_error", {"address": address, "raw_preview": (text or "")[:300]})
             return None
         except Exception as e:
             self.log_event("walkscore_search_error", {"address": address, "error": str(e)})

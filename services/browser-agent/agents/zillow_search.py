@@ -2,7 +2,7 @@ import asyncio
 import json
 import re
 from browser_use import Agent
-from agents.base import BaseResearchAgent, build_llm, build_browser_session
+from agents.base import BaseResearchAgent, build_llm
 from config import (
     DEFAULT_SEARCH_DELAY_SECONDS,
     MAX_DETAIL_PAGES,
@@ -11,45 +11,10 @@ from config import (
 
 
 class ZillowSearchAgent(BaseResearchAgent):
-    """Multi-stage Zillow research: search results → detail deep-dive → listing agent extraction."""
+    """Multi-stage Zillow research: search results -> detail deep-dive -> listing agent extraction."""
 
-    def _extract_result(self, result) -> str | None:
-        """Extract the text content from an AgentHistoryList result."""
-        # browser-use 0.12 returns AgentHistoryList
-        if hasattr(result, "final_result"):
-            text = result.final_result()
-            if text:
-                return text
-        # Also check extracted_content list
-        if hasattr(result, "extracted_content"):
-            contents = result.extracted_content()
-            if contents:
-                return "\n".join(contents)
-        # Fallback to str
-        return str(result) if result else None
-
-    def _parse_json(self, raw: str | None):
-        """Extract JSON array or object from text."""
-        if not raw:
-            return None
-        text = str(raw)
-        # Try array first
-        start = text.find("[")
-        end = text.rfind("]") + 1
-        if start >= 0 and end > start:
-            try:
-                return json.loads(text[start:end])
-            except json.JSONDecodeError:
-                pass
-        # Try object
-        start = text.find("{")
-        end = text.rfind("}") + 1
-        if start >= 0 and end > start:
-            try:
-                return json.loads(text[start:end])
-            except json.JSONDecodeError:
-                pass
-        return None
+    # _extract_result and _parse_json are inherited from BaseResearchAgent
+    # as extract_result() and parse_json()
 
     # ------------------------------------------------------------------
     # Stage 1: Search results scraping (up to MAX_SEARCH_PAGES pages)
@@ -67,6 +32,11 @@ class ZillowSearchAgent(BaseResearchAgent):
             home_type_instruction = f"- Home type: {home_type}\n"
 
         all_listings: list[dict] = []
+        browser = await self.ensure_browser()
+
+        # Use a single Agent with add_new_task for pagination to keep the
+        # same browser tab/context alive across pages.
+        search_agent: Agent | None = None
 
         for page_num in range(1, MAX_SEARCH_PAGES + 1):
             self.log_event("search_page_start", {"page": page_num})
@@ -107,10 +77,17 @@ Scroll through ALL the results on this page. For each listing card visible, extr
 Return the results as a JSON array. Return ONLY the JSON array, no other text."""
 
             try:
-                agent = Agent(task=task, llm=build_llm(), browser_session=build_browser_session())
-                result = await agent.run()
-                result_text = self._extract_result(result)
-                listings = self._parse_json(result_text)
+                if search_agent is None:
+                    search_agent = Agent(
+                        task=task, llm=build_llm(), browser=browser,
+                    )
+                    result = await search_agent.run()
+                else:
+                    search_agent.add_new_task(task)
+                    result = await search_agent.run()
+
+                result_text = self.extract_result(result)
+                listings = self.parse_json(result_text)
                 if isinstance(listings, list):
                     all_listings.extend(listings)
                     self.log_event("search_page_done", {
@@ -141,6 +118,8 @@ Return the results as a JSON array. Return ONLY the JSON array, no other text.""
         if not url:
             self.log_event("detail_skip_no_url", {"address": address})
             return None
+
+        browser = await self.ensure_browser()
 
         task = f"""Navigate to this Zillow listing page: {url}
 
@@ -177,10 +156,10 @@ Return a single JSON object with these exact keys:
 Return ONLY the JSON object, no other text."""
 
         try:
-            agent = Agent(task=task, llm=build_llm(), browser_session=build_browser_session())
+            agent = Agent(task=task, llm=build_llm(), browser=browser)
             result = await agent.run()
-            result_text = self._extract_result(result)
-            data = self._parse_json(result_text)
+            result_text = self.extract_result(result)
+            data = self.parse_json(result_text)
             if isinstance(data, dict):
                 self.log_event("detail_extracted", {"address": address})
                 return data

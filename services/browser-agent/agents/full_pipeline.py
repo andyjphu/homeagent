@@ -1,5 +1,4 @@
-import asyncio
-from agents.base import BaseResearchAgent
+from agents.base import BaseResearchAgent, build_browser_session
 from agents.zillow_search import ZillowSearchAgent
 from agents.school_search import SchoolAgent
 from agents.walkscore_search import WalkScoreAgent
@@ -8,7 +7,11 @@ from db.supabase_client import supabase
 
 
 class FullResearchPipeline(BaseResearchAgent):
-    """Orchestrates the full research flow: Zillow search → cross-reference enrichment."""
+    """Orchestrates the full research flow: Zillow search -> cross-reference enrichment.
+
+    Creates a single shared browser session and passes it to every sub-agent
+    so they all reuse the same stealth browser instance.
+    """
 
     async def run(self, input_params: dict) -> list[str]:
         await self.update_status("running")
@@ -23,11 +26,32 @@ class FullResearchPipeline(BaseResearchAgent):
             description="Running Zillow search + school/walkscore/commute enrichment",
         )
 
+        # Create one browser session for the entire pipeline
+        shared_browser = build_browser_session(keep_alive=True)
+
+        try:
+            property_ids = await self._run_pipeline(
+                input_params, intent, workplace, shared_browser,
+            )
+        finally:
+            # Always close the browser when the pipeline is done
+            try:
+                await shared_browser.stop()
+            except Exception:
+                pass
+
+        return property_ids
+
+    async def _run_pipeline(
+        self, input_params: dict, intent: dict, workplace: str | None, shared_browser,
+    ) -> list[str]:
         # ------------------------------------------------------------------
         # Stage 1+2: Zillow search + detail extraction
         # ------------------------------------------------------------------
         self.log_event("stage_zillow_start")
-        zillow_agent = ZillowSearchAgent(self.task_id, self.agent_id, self.buyer_id)
+        zillow_agent = ZillowSearchAgent(
+            self.task_id, self.agent_id, self.buyer_id, browser=shared_browser,
+        )
         try:
             property_ids = await zillow_agent.run(input_params)
         except Exception as e:
@@ -47,8 +71,6 @@ class FullResearchPipeline(BaseResearchAgent):
             return []
 
         self.log_event("stage_zillow_done", {"property_count": len(property_ids)})
-
-        # Merge zillow agent logs into pipeline logs
         self.execution_log.extend(zillow_agent.execution_log)
 
         # ------------------------------------------------------------------
@@ -77,7 +99,9 @@ class FullResearchPipeline(BaseResearchAgent):
 
             # School ratings
             try:
-                school_agent = SchoolAgent(self.task_id, self.agent_id, self.buyer_id)
+                school_agent = SchoolAgent(
+                    self.task_id, self.agent_id, self.buyer_id, browser=shared_browser,
+                )
                 school_data = await school_agent.run({"address": full_address})
                 if school_data:
                     updates["school_ratings"] = school_data
@@ -87,7 +111,9 @@ class FullResearchPipeline(BaseResearchAgent):
 
             # Walk Score / Transit Score
             try:
-                walkscore_agent = WalkScoreAgent(self.task_id, self.agent_id, self.buyer_id)
+                walkscore_agent = WalkScoreAgent(
+                    self.task_id, self.agent_id, self.buyer_id, browser=shared_browser,
+                )
                 walkscore_data = await walkscore_agent.run({"address": full_address})
                 if walkscore_data:
                     if walkscore_data.get("walk_score") is not None:
@@ -101,7 +127,9 @@ class FullResearchPipeline(BaseResearchAgent):
             # Commute data (only if buyer has a workplace)
             if workplace:
                 try:
-                    commute_agent = CommuteAgent(self.task_id, self.agent_id, self.buyer_id)
+                    commute_agent = CommuteAgent(
+                        self.task_id, self.agent_id, self.buyer_id, browser=shared_browser,
+                    )
                     commute_data = await commute_agent.run({
                         "address": full_address,
                         "workplace": workplace,

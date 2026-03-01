@@ -38,7 +38,11 @@ export async function POST() {
     const after = agent.gmail_last_scan_at
       || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
+    console.log("[email-scan] agent:", agent.id, "email:", agent.email, "after:", after);
+
     const emails = await fetchRecentEmails(auth, agent.email, 30, after);
+
+    console.log("[email-scan] fetched", emails.length, "emails from Gmail");
 
     if (emails.length === 0) {
       await admin
@@ -46,7 +50,7 @@ export async function POST() {
         .update({ gmail_last_scan_at: new Date().toISOString() })
         .eq("id", agent.id);
 
-      return NextResponse.json({ processed: 0, total: 0 });
+      return NextResponse.json({ processed: 0, total: 0, debug: { after, agentEmail: agent.email } });
     }
 
     // Deduplicate

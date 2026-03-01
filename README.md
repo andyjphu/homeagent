@@ -88,9 +88,8 @@ cd homeagent
 # Install frontend dependencies
 cd web && npm install
 
-# Set up environment variables (copy from .env and adjust)
-# Required: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
-# Optional: CEREBRAS_API_KEY, GEMINI_API_KEY (for AI features)
+# Copy env template and fill in values
+cp web/.env.example web/.env.local
 
 # Run database migrations
 npx supabase db push
@@ -98,6 +97,32 @@ npx supabase db push
 # Start dev server
 npm run dev
 ```
+
+### Environment Variables
+
+Copy `web/.env.example` to `web/.env.local`. Use these **exact variable names** everywhere (local, Vercel, CI).
+
+| Variable | Required | Where Used | Description |
+|----------|----------|------------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Client + Server | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Client + Server | Supabase publishable/anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server only | Supabase service role key (admin ops) |
+| `NEXT_PUBLIC_APP_URL` | Yes | Client + Server | App base URL (`http://localhost:3000` local, production URL on Vercel) |
+| `GOOGLE_OAUTH_CLIENT_ID` | Yes | Server only | Google OAuth 2.0 client ID |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | Yes | Server only | Google OAuth 2.0 client secret |
+| `GOOGLE_REDIRECT_URI` | Yes | Server only | Gmail OAuth callback — must be `{APP_URL}/api/email/callback` |
+| `GEMINI_API_KEY` | Optional | Server only | Gemini API key for complex LLM tasks |
+| `CEREBRAS_API_KEY` | Optional | Server only | Cerebras API key for fast/cheap LLM tasks |
+
+### Google Cloud Console Setup
+
+1. Create OAuth 2.0 credentials at [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. Add **Authorized redirect URIs** for every environment:
+   - `http://localhost:3000/api/email/callback` (local dev)
+   - `https://your-domain.vercel.app/api/email/callback` (production)
+3. Enable the **Gmail API**
+4. Configure the **OAuth consent screen** and add `gmail.readonly` scope
+5. If app is in "Testing" mode, add your Google account as a test user
 
 Open [http://localhost:3000](http://localhost:3000).
 

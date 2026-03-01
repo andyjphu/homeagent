@@ -27,11 +27,15 @@ export async function fetchRecentEmails(
     query += ` after:${afterEpoch}`;
   }
 
+  console.log("[gmail-client] query:", query);
+
   const listResponse = await gmail.users.messages.list({
     userId: "me",
     maxResults,
     q: query,
   });
+
+  console.log("[gmail-client] messages found:", listResponse.data.messages?.length ?? 0);
 
   const messageIds = listResponse.data.messages || [];
   if (messageIds.length === 0) return [];

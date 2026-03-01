@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Mail, Plug } from "lucide-react";
 import { ScanButton } from "@/components/email/scan-button";
+import { EmailInbox } from "@/components/email/email-inbox";
 
 export default async function EmailPage() {
   const supabase = await createClient() as any;
@@ -63,69 +64,68 @@ export default async function EmailPage() {
         <ScanButton />
       </div>
 
-      <div className="space-y-3">
-        {(!communications || communications.length === 0) ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Mail className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">
-                No emails analyzed yet. Run a scan to start.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          communications.map((comm: any) => {
-            const analysis = (comm.ai_analysis || {}) as any;
-            return (
-              <Card key={comm.id}>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">{comm.direction}</Badge>
-                        {comm.classification && (
-                          <Badge
-                            variant={
-                              comm.classification === "new_lead"
-                                ? "destructive"
-                                : comm.classification === "action_required"
-                                ? "default"
-                                : "secondary"
-                            }
-                          >
-                            {comm.classification.replace(/_/g, " ")}
-                          </Badge>
+      <div>
+        <h2 className="text-lg font-semibold mb-3">Inbox</h2>
+        <EmailInbox />
+      </div>
+
+      {communications && communications.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-3">Scanned &amp; Classified</h2>
+          <div className="space-y-3">
+            {communications.map((comm: any) => {
+              const analysis = (comm.ai_analysis || {}) as any;
+              return (
+                <Card key={comm.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">{comm.direction}</Badge>
+                          {comm.classification && (
+                            <Badge
+                              variant={
+                                comm.classification === "new_lead"
+                                  ? "destructive"
+                                  : comm.classification === "action_required"
+                                  ? "default"
+                                  : "secondary"
+                              }
+                            >
+                              {comm.classification.replace(/_/g, " ")}
+                            </Badge>
+                          )}
+                          {comm.buyers?.full_name && (
+                            <span className="text-sm text-muted-foreground">
+                              {comm.buyers.full_name}
+                            </span>
+                          )}
+                        </div>
+                        {comm.subject && (
+                          <p className="font-medium">{comm.subject}</p>
                         )}
-                        {comm.buyers?.full_name && (
-                          <span className="text-sm text-muted-foreground">
-                            {comm.buyers.full_name}
-                          </span>
+                        <p className="text-sm text-muted-foreground">
+                          {comm.direction === "inbound"
+                            ? `From: ${comm.from_address}`
+                            : `To: ${comm.to_address}`}
+                        </p>
+                        {analysis.summary && (
+                          <p className="text-sm bg-muted p-2 rounded mt-2">
+                            {analysis.summary}
+                          </p>
                         )}
                       </div>
-                      {comm.subject && (
-                        <p className="font-medium">{comm.subject}</p>
-                      )}
-                      <p className="text-sm text-muted-foreground">
-                        {comm.direction === "inbound"
-                          ? `From: ${comm.from_address}`
-                          : `To: ${comm.to_address}`}
+                      <p className="text-xs text-muted-foreground whitespace-nowrap ml-4">
+                        {new Date(comm.occurred_at).toLocaleString()}
                       </p>
-                      {analysis.summary && (
-                        <p className="text-sm bg-muted p-2 rounded mt-2">
-                          {analysis.summary}
-                        </p>
-                      )}
                     </div>
-                    <p className="text-xs text-muted-foreground whitespace-nowrap ml-4">
-                      {new Date(comm.occurred_at).toLocaleString()}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })
-        )}
-      </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

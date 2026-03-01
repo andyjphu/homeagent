@@ -6,8 +6,8 @@ export function createOAuth2Client() {
     `${process.env.NEXT_PUBLIC_APP_URL}/api/email/callback`;
 
   return new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_OAUTH_CLIENT_ID,
+    process.env.GOOGLE_OAUTH_CLIENT_SECRET,
     redirectUri
   );
 }

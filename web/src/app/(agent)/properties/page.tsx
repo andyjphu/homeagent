@@ -94,7 +94,6 @@ export default async function PropertiesPage() {
                         href={property.zillow_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
                         className="text-xs text-primary hover:underline inline-flex items-center gap-1"
                       >
                         Zillow <ExternalLink className="h-3 w-3" />

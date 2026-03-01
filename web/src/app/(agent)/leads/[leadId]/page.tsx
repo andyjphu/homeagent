@@ -26,10 +26,26 @@ export default function LeadDetailPage() {
       const supabase = createClient() as any;
       const { data } = await supabase
         .from("leads")
-        .select("*, communications:source_communication_id(type, gmail_message_id, gmail_thread_id, subject, from_address, recording_url, raw_content, duration_seconds, ai_analysis)")
+        .select("*")
         .eq("id", params.leadId as string)
         .single();
-      setLead(data);
+
+      if (!data) {
+        setLoading(false);
+        return;
+      }
+
+      let communications = null;
+      if (data.source_communication_id) {
+        const { data: comm } = await supabase
+          .from("communications")
+          .select("gmail_message_id, gmail_thread_id, subject, from_address, recording_url, raw_content, duration_seconds, ai_analysis")
+          .eq("id", data.source_communication_id)
+          .single();
+        communications = comm ?? null;
+      }
+
+      setLead({ ...data, communications });
       setLoading(false);
     }
     fetchLead();
@@ -40,9 +56,11 @@ export default function LeadDetailPage() {
     setConfirming(true);
 
     const supabase = createClient() as any;
+    const { data: { user } } = await supabase.auth.getUser();
     const { data: agentData } = await supabase
       .from("agents")
       .select("id")
+      .eq("user_id", user!.id)
       .single();
 
     if (!agentData) return;

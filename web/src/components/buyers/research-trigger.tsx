@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2, AlertTriangle } from "lucide-react";
+import { Search, Loader2, AlertTriangle, ExternalLink } from "lucide-react";
 
 export function ResearchTrigger({
   buyerId,
@@ -15,12 +15,14 @@ export function ResearchTrigger({
   intentProfile: any;
 }) {
   const [loading, setLoading] = useState(false);
-  const [warning, setWarning] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [liveUrl, setLiveUrl] = useState<string | null>(null);
   const router = useRouter();
 
   async function handleTrigger() {
     setLoading(true);
-    setWarning(null);
+    setError(null);
+    setLiveUrl(null);
     try {
       const response = await fetch("/api/research/trigger", {
         method: "POST",
@@ -33,21 +35,26 @@ export function ResearchTrigger({
         }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (!data.backendReachable) {
-          setWarning("Research service unavailable — task queued but won't run until the service is online.");
-        }
-        router.refresh();
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error ?? "Failed to start research");
+      } else if (data.error) {
+        setError(data.error);
+      } else if (data.liveUrl) {
+        setLiveUrl(data.liveUrl);
       }
+
+      router.refresh();
     } catch (err) {
+      setError("Failed to start research");
       console.error("Failed to trigger research:", err);
     }
     setLoading(false);
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 flex-wrap">
       <Button onClick={handleTrigger} disabled={loading} size="sm">
         {loading ? (
           <Loader2 className="h-4 w-4 mr-1 animate-spin" />
@@ -56,11 +63,22 @@ export function ResearchTrigger({
         )}
         {loading ? "Starting..." : "Run Research"}
       </Button>
-      {warning && (
-        <span className="text-xs text-amber-600 flex items-center gap-1 max-w-64">
+      {error && (
+        <span className="text-xs text-destructive flex items-center gap-1 max-w-80">
           <AlertTriangle className="h-3 w-3 shrink-0" />
-          {warning}
+          {error}
         </span>
+      )}
+      {liveUrl && (
+        <a
+          href={liveUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-primary hover:underline flex items-center gap-1"
+        >
+          Watch live
+          <ExternalLink className="h-3 w-3" />
+        </a>
       )}
     </div>
   );

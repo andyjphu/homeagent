@@ -29,7 +29,7 @@ export default async function PropertyDetailPage({
   return (
     <div className="max-w-3xl space-y-6">
       <div className="flex items-center gap-2">
-        <Link href="/deals">
+        <Link href="/properties">
           <Button variant="ghost" size="sm">
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back

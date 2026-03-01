@@ -47,6 +47,7 @@ build/
 # Browser agent
 services/browser-agent/venv/
 services/browser-agent/.venv/
+services/browser-agent/.browser_profile/
 
 # Keys / certs
 *.pem

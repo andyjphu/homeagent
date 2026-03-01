@@ -48,6 +48,8 @@ class PropertyData(BaseModel):
     year_built: Optional[int] = None
     property_type: Optional[str] = None
     hoa_monthly: Optional[int] = None
+    tax_annual: Optional[int] = None
+    tax_assessed_value: Optional[int] = None
     listing_description: Optional[str] = None
     photos: list[str] = []
     amenities: list[str] = []

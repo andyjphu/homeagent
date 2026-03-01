@@ -2,7 +2,11 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from models.tasks import TaskRequest, TaskResponse, TaskStatus
 from agents.zillow_search import ZillowSearchAgent
-from queue.manager import queue_manager
+from agents.full_pipeline import FullResearchPipeline
+from agents.school_search import SchoolAgent
+from agents.walkscore_search import WalkScoreAgent
+from agents.commute_search import CommuteAgent
+from task_queue.manager import queue_manager
 
 app = FastAPI(title="HomeAgent Browser Agent")
 
@@ -16,8 +20,9 @@ app.add_middleware(
 
 AGENT_CLASSES = {
     "zillow_search": ZillowSearchAgent,
-    "full_research_pipeline": ZillowSearchAgent,  # For now, pipeline = zillow search
     "property_detail": ZillowSearchAgent,
+    "cross_reference": FullResearchPipeline,  # cross_reference runs school+walkscore+commute
+    "full_research_pipeline": FullResearchPipeline,
 }
 
 

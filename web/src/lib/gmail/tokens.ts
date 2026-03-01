@@ -21,26 +21,20 @@ export async function getAuthedClient(agentId: string) {
     expiry_date: new Date(agent.gmail_token_expires_at).getTime(),
   });
 
-  // Refresh if expiring within 5 minutes
-  const expiresAt = new Date(agent.gmail_token_expires_at).getTime();
-  const FIVE_MINUTES = 5 * 60 * 1000;
+  // Let googleapis auto-refresh; persist new tokens when it does
+  oauth2Client.on("tokens", async (tokens) => {
+    const update: Record<string, string> = {};
+    if (tokens.access_token) update.gmail_access_token = tokens.access_token;
+    if (tokens.refresh_token) update.gmail_refresh_token = tokens.refresh_token;
+    if (tokens.expiry_date) update.gmail_token_expires_at = new Date(tokens.expiry_date).toISOString();
 
-  if (expiresAt - Date.now() < FIVE_MINUTES) {
-    const { credentials } = await oauth2Client.refreshAccessToken();
-
-    await supabase
-      .from("agents")
-      .update({
-        gmail_access_token: credentials.access_token,
-        gmail_token_expires_at: new Date(credentials.expiry_date!).toISOString(),
-        ...(credentials.refresh_token
-          ? { gmail_refresh_token: credentials.refresh_token }
-          : {}),
-      })
-      .eq("id", agentId);
-
-    oauth2Client.setCredentials(credentials);
-  }
+    if (Object.keys(update).length > 0) {
+      await supabase
+        .from("agents")
+        .update(update)
+        .eq("id", agentId);
+    }
+  });
 
   return oauth2Client;
 }

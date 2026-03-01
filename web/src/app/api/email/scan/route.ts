@@ -12,7 +12,10 @@ interface ClassificationResult {
   reasoning: string;
 }
 
-export async function POST() {
+export async function POST(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const rescan = searchParams.get("rescan") === "1";
+
   const supabase = await createClient() as any;
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -35,10 +38,24 @@ export async function POST() {
   try {
     const auth = await getAuthedClient(agent.id);
 
-    const after = agent.gmail_last_scan_at
-      || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    // Rescan: clear old communications and reset time window
+    if (rescan) {
+      await admin
+        .from("communications")
+        .delete()
+        .eq("agent_id", agent.id)
+        .eq("type", "email");
+    }
 
-    const emails = await fetchRecentEmails(auth, agent.email, 30, after);
+    const after = rescan
+      ? new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
+      : (agent.gmail_last_scan_at || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+
+    console.log("[email-scan] agent:", agent.id, "email:", agent.email, "after:", after, "rescan:", rescan);
+
+    const emails = await fetchRecentEmails(auth, agent.email, 15, after);
+
+    console.log("[email-scan] fetched", emails.length, "emails from Gmail");
 
     if (emails.length === 0) {
       await admin
@@ -46,7 +63,7 @@ export async function POST() {
         .update({ gmail_last_scan_at: new Date().toISOString() })
         .eq("id", agent.id);
 
-      return NextResponse.json({ processed: 0, total: 0 });
+      return NextResponse.json({ processed: 0, total: 0, debug: { after, agentEmail: agent.email } });
     }
 
     // Deduplicate
@@ -61,14 +78,28 @@ export async function POST() {
     const newEmails = emails.filter((e) => !existingIds.has(e.id));
 
     let processed = 0;
-    for (const email of newEmails) {
-      try {
-        const classification = await llmJSON<ClassificationResult>(
-          "email_classification",
-          EMAIL_CLASSIFICATION_PROMPT,
-          `Subject: ${email.subject}\nFrom: ${email.from}\nTo: ${email.to}\n\n${email.body.slice(0, 2000)}`
-        );
+    const errors: string[] = [];
 
+    // Classify all emails in parallel, then insert
+    const classifications = await Promise.all(
+      newEmails.map(async (email) => {
+        try {
+          return await llmJSON<ClassificationResult>(
+            "email_classification",
+            EMAIL_CLASSIFICATION_PROMPT,
+            `Subject: ${email.subject}\nFrom: ${email.from}\nTo: ${email.to}\n\n${email.body.slice(0, 2000)}`
+          );
+        } catch (llmError) {
+          errors.push(`LLM failed for "${email.subject}": ${llmError instanceof Error ? llmError.message : "unknown"}`);
+          return null;
+        }
+      })
+    );
+
+    for (let i = 0; i < newEmails.length; i++) {
+      const email = newEmails[i];
+      const classification = classifications[i];
+      try {
         const { data: comm } = await admin
           .from("communications")
           .insert({
@@ -81,9 +112,9 @@ export async function POST() {
             to_address: email.to,
             gmail_message_id: email.id,
             gmail_thread_id: email.threadId,
-            classification: classification.classification,
-            ai_analysis: classification,
-            is_processed: true,
+            classification: classification?.classification || null,
+            ai_analysis: classification || null,
+            is_processed: !!classification,
             processed_at: new Date().toISOString(),
             occurred_at: email.date,
           })
@@ -92,6 +123,7 @@ export async function POST() {
 
         if (
           email.direction === "inbound" &&
+          classification?.classification &&
           classification.classification !== "noise" &&
           comm
         ) {
@@ -114,7 +146,9 @@ export async function POST() {
 
         processed++;
       } catch (emailError) {
-        console.error(`Failed to process email ${email.id}:`, emailError);
+        const msg = emailError instanceof Error ? emailError.message : "unknown";
+        console.error(`[email-scan] Failed to process email ${email.id}:`, emailError);
+        errors.push(`DB insert failed for "${email.subject}": ${msg}`);
       }
     }
 
@@ -127,6 +161,7 @@ export async function POST() {
       processed,
       total: newEmails.length,
       skipped: emails.length - newEmails.length,
+      ...(errors.length > 0 ? { errors } : {}),
     });
   } catch (err) {
     console.error("Email scan error:", err);

@@ -3,21 +3,26 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, RotateCcw } from "lucide-react";
 
 export function ScanButton() {
   const [scanning, setScanning] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const router = useRouter();
 
-  async function handleScan() {
+  async function handleScan(rescan = false) {
     setScanning(true);
     setResult(null);
     try {
-      const res = await fetch("/api/email/scan", { method: "POST" });
+      const url = rescan ? "/api/email/scan?rescan=1" : "/api/email/scan";
+      const res = await fetch(url, { method: "POST" });
       const data = await res.json();
       if (res.ok) {
-        setResult(`Processed ${data.processed} new email(s)`);
+        let msg = `Processed ${data.processed} of ${data.total} email(s)`;
+        if (data.skipped) msg += ` (${data.skipped} already scanned)`;
+        if (data.errors?.length) msg += ` — ${data.errors[0]}`;
+        setResult(msg);
+        window.dispatchEvent(new Event("emails-updated"));
         router.refresh();
       } else {
         setResult(data.error || "Scan failed");
@@ -34,7 +39,7 @@ export function ScanButton() {
       <Button
         variant="outline"
         size="sm"
-        onClick={handleScan}
+        onClick={() => handleScan(false)}
         disabled={scanning}
       >
         {scanning ? (
@@ -42,7 +47,16 @@ export function ScanButton() {
         ) : (
           <RefreshCw className="h-4 w-4 mr-1" />
         )}
-        {scanning ? "Scanning..." : "Scan Now"}
+        {scanning ? "Scanning..." : "Scan New"}
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => handleScan(true)}
+        disabled={scanning}
+      >
+        <RotateCcw className="h-4 w-4 mr-1" />
+        Re-scan All
       </Button>
       {result && (
         <span className="text-sm text-muted-foreground">{result}</span>

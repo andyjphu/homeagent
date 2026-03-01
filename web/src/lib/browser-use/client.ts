@@ -1,4 +1,9 @@
-const BU_BASE_URL = "https://api.browser-use.com/api/v1";
+/**
+ * Browser Use Cloud API v2 client.
+ * Docs: https://docs.cloud.browser-use.com/api-v2
+ */
+
+const BU_BASE_URL = "https://api.browser-use.com/api/v2";
 
 function getApiKey(): string {
   const key = process.env.BROWSER_USE_API_KEY;
@@ -6,59 +11,83 @@ function getApiKey(): string {
   return key;
 }
 
-export interface BURunTaskResponse {
+function headers(): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    "X-Browser-Use-API-Key": getApiKey(),
+  };
+}
+
+// ---------- Types ----------
+
+export interface BUCreateTaskResponse {
   id: string;
-  status: string;
-  live_url: string;
-  created_at?: string;
+  sessionId: string;
 }
 
 export interface BUTaskStatus {
   id: string;
-  status: "created" | "running" | "paused" | "finished" | "failed" | "stopped";
+  status: "created" | "started" | "finished" | "stopped";
   output: string | null;
-  live_url: string;
-  created_at: string;
-  finished_at: string | null;
+  finishedAt: string | null;
+  isSuccess: boolean | null;
+  cost: string | null;
+}
+
+export interface BUTaskFull {
+  id: string;
+  sessionId: string;
+  status: "created" | "started" | "finished" | "stopped";
+  output: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
   steps: BUStep[] | null;
+  isSuccess: boolean | null;
+  cost: string | null;
 }
 
 export interface BUStep {
-  step_number: number;
-  description: string;
-  timestamp: string;
+  stepNumber: number;
+  url: string | null;
 }
 
+export interface BUSession {
+  id: string;
+  status: "active" | "stopped";
+  liveUrl: string | null;
+  publicShareUrl: string | null;
+  startedAt: string;
+  finishedAt: string | null;
+}
+
+// ---------- API calls ----------
+
 /**
- * Start a Browser Use Cloud task.
- * Returns the task ID and live preview URL.
+ * Create and start a new Browser Use Cloud task.
+ * Returns the task ID and session ID. Fetch the session to get the live URL.
  */
-export async function runTask(task: string): Promise<BURunTaskResponse> {
-  const res = await fetch(`${BU_BASE_URL}/run-task`, {
+export async function createTask(task: string): Promise<BUCreateTaskResponse> {
+  const res = await fetch(`${BU_BASE_URL}/tasks`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getApiKey()}`,
-    },
+    headers: headers(),
     body: JSON.stringify({ task }),
   });
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Browser Use run-task failed (${res.status}): ${text}`);
+    throw new Error(`Browser Use create-task failed (${res.status}): ${text}`);
   }
 
   return res.json();
 }
 
 /**
- * Check the status of a Browser Use Cloud task.
+ * Lightweight status poll (no steps or files).
  */
 export async function getTaskStatus(taskId: string): Promise<BUTaskStatus> {
-  const res = await fetch(`${BU_BASE_URL}/task/${taskId}`, {
-    headers: {
-      Authorization: `Bearer ${getApiKey()}`,
-    },
+  const res = await fetch(`${BU_BASE_URL}/tasks/${taskId}/status`, {
+    headers: headers(),
   });
 
   if (!res.ok) {
@@ -70,22 +99,76 @@ export async function getTaskStatus(taskId: string): Promise<BUTaskStatus> {
 }
 
 /**
- * Stop a running Browser Use Cloud task.
+ * Get full task details including steps and output.
+ */
+export async function getTaskFull(taskId: string): Promise<BUTaskFull> {
+  const res = await fetch(`${BU_BASE_URL}/tasks/${taskId}`, {
+    headers: headers(),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Browser Use get-task failed (${res.status}): ${text}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Get session info including the live preview URL.
+ */
+export async function getSession(sessionId: string): Promise<BUSession> {
+  const res = await fetch(`${BU_BASE_URL}/sessions/${sessionId}`, {
+    headers: headers(),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Browser Use get-session failed (${res.status}): ${text}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Stop a running task.
  */
 export async function stopTask(taskId: string): Promise<void> {
-  const res = await fetch(`${BU_BASE_URL}/stop-task`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getApiKey()}`,
-    },
-    body: JSON.stringify({ task_id: taskId }),
+  const res = await fetch(`${BU_BASE_URL}/tasks/${taskId}/stop`, {
+    method: "PUT",
+    headers: headers(),
   });
 
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Browser Use stop-task failed (${res.status}): ${text}`);
   }
+}
+
+// ---------- Helpers ----------
+
+/**
+ * Create a task and immediately fetch the session's live URL.
+ * Convenience wrapper for the common pattern.
+ */
+export async function runTask(
+  task: string
+): Promise<{ taskId: string; sessionId: string; liveUrl: string | null }> {
+  const created = await createTask(task);
+
+  let liveUrl: string | null = null;
+  try {
+    const session = await getSession(created.sessionId);
+    liveUrl = session.liveUrl;
+  } catch {
+    // Non-critical — live preview is optional
+  }
+
+  return {
+    taskId: created.id,
+    sessionId: created.sessionId,
+    liveUrl,
+  };
 }
 
 /**

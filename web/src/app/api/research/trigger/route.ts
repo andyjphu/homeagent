@@ -68,8 +68,9 @@ export async function POST(request: Request) {
     await updateTaskStatus(task.id, "running", {
       output_data: {
         pipeline_stage: "zillow_search",
-        bu_task_id: buTask.id,
-        live_url: buTask.live_url,
+        bu_task_id: buTask.taskId,
+        bu_session_id: buTask.sessionId,
+        live_url: buTask.liveUrl,
         intent_profile: intentProfile,
         workplace: intentProfile?.workplace_address ?? null,
         skip_enrichment: false,
@@ -77,7 +78,7 @@ export async function POST(request: Request) {
       },
     });
 
-    liveUrl = buTask.live_url;
+    liveUrl = buTask.liveUrl;
   } catch (err: any) {
     console.error("Failed to start Browser Use task:", err);
     await logEvent(task.id, "stage_zillow_failed", { error: err.message });

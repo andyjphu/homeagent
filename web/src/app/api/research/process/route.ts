@@ -83,17 +83,17 @@ export async function POST(request: Request) {
   }
 
   // Still running — return current state with live URL
-  if (buStatus.status === "running" || buStatus.status === "created") {
+  if (buStatus.status === "started" || buStatus.status === "created") {
     return NextResponse.json({
       stage,
       status: "running",
-      liveUrl: buStatus.live_url,
+      liveUrl: outputData.live_url ?? null,
       buStatus: buStatus.status,
     });
   }
 
-  // Failed
-  if (buStatus.status === "failed" || buStatus.status === "stopped") {
+  // Stopped (manually or error)
+  if (buStatus.status === "stopped") {
     await logEvent(taskId, `${stage}_failed`, {
       error: buStatus.output ?? "Task failed",
     });
@@ -139,7 +139,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     stage,
     status: task.status,
-    liveUrl: buStatus.live_url ?? null,
+    liveUrl: outputData.live_url ?? null,
     buStatus: buStatus.status,
   });
 }
@@ -585,15 +585,16 @@ async function startEnrichmentStep(
     pipeline_stage: "enrichment",
     enrichment_type: step.type,
     enrichment_index: step.propIdx,
-    bu_task_id: buTask.id,
-    live_url: buTask.live_url,
+    bu_task_id: buTask.taskId,
+    bu_session_id: buTask.sessionId,
+    live_url: buTask.liveUrl,
   };
   await updateTaskStatus(taskId, "running", { output_data: updated });
 
   return {
     stage: "enrichment",
     status: "running",
-    liveUrl: buTask.live_url,
+    liveUrl: buTask.liveUrl,
     enrichment_type: step.type,
     enrichment_index: step.propIdx,
   };

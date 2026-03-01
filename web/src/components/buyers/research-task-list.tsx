@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -186,16 +186,17 @@ function LivePreview({ liveUrl }: { liveUrl: string }) {
           <ExternalLink className="h-3 w-3" />
         </a>
       </div>
-      {showIframe && (
-        <div className="rounded-md border overflow-hidden bg-muted">
-          <iframe
-            src={liveUrl}
-            className="w-full h-[300px]"
-            title="Live browser preview"
-            sandbox="allow-scripts allow-same-origin"
-          />
-        </div>
-      )}
+      {/* Keep iframe mounted but hidden so it doesn't reset on re-render */}
+      <div
+        className={`rounded-md border overflow-hidden bg-muted ${showIframe ? "" : "hidden"}`}
+      >
+        <iframe
+          src={liveUrl}
+          className="w-full h-[300px]"
+          title="Live browser preview"
+          sandbox="allow-scripts allow-same-origin"
+        />
+      </div>
     </div>
   );
 }
@@ -250,6 +251,8 @@ export function ResearchTaskList({ buyerId }: { buyerId: string }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const tasksRef = useRef<Task[]>([]);
+  const expandedOnceRef = useRef(false);
 
   const fetchTasks = useCallback(async () => {
     const supabase = createClient() as any;
@@ -261,16 +264,21 @@ export function ResearchTaskList({ buyerId }: { buyerId: string }) {
       .limit(20);
 
     if (data) {
+      tasksRef.current = data;
       setTasks(data);
-      const active = data.find((t: Task) => t.status === "running" || t.status === "queued");
-      if (active) setExpandedId(active.id);
+      // Auto-expand active task only on first load
+      if (!expandedOnceRef.current) {
+        const active = data.find((t: Task) => t.status === "running" || t.status === "queued");
+        if (active) setExpandedId(active.id);
+        expandedOnceRef.current = true;
+      }
     }
     setLoading(false);
   }, [buyerId]);
 
   // Advance pipeline for active tasks by calling /api/research/process
   const processActiveTasks = useCallback(async () => {
-    const activeTasks = tasks.filter((t) => t.status === "running");
+    const activeTasks = tasksRef.current.filter((t) => t.status === "running");
     for (const task of activeTasks) {
       if (task.output_data?.bu_task_id || task.output_data?.pipeline_stage === "scoring") {
         try {
@@ -284,23 +292,25 @@ export function ResearchTaskList({ buyerId }: { buyerId: string }) {
         }
       }
     }
-  }, [tasks]);
+  }, []);
 
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
 
   // Poll: advance pipeline + refresh from DB
+  // Use a stable interval that doesn't depend on `tasks` state
   useEffect(() => {
-    const hasActive = tasks.some((t) => t.status === "running" || t.status === "queued");
-    if (!hasActive) return;
-
     const interval = setInterval(async () => {
+      const hasActive = tasksRef.current.some(
+        (t) => t.status === "running" || t.status === "queued"
+      );
+      if (!hasActive) return;
       await processActiveTasks();
       await fetchTasks();
     }, 4000);
     return () => clearInterval(interval);
-  }, [tasks, fetchTasks, processActiveTasks]);
+  }, [fetchTasks, processActiveTasks]);
 
   if (loading) {
     return (
@@ -409,9 +419,9 @@ export function ResearchTaskList({ buyerId }: { buyerId: string }) {
                     </div>
                   )}
 
-                  {/* Live browser preview */}
-                  {isActive && liveUrl && (
-                    <LivePreview liveUrl={liveUrl} />
+                  {/* Live browser preview — keep mounted even after task completes so iframe doesn't vanish */}
+                  {liveUrl && (
+                    <LivePreview key={task.id} liveUrl={liveUrl} />
                   )}
 
                   {events.length > 0 ? (

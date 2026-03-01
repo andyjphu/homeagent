@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2 } from "lucide-react";
+import { Building2, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
 export default async function PropertiesPage() {
@@ -89,6 +89,17 @@ export default async function PropertiesPage() {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
+                    {property.zillow_url && (
+                      <a
+                        href={property.zillow_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        Zillow <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
                     {buyerNames.length > 0 && (
                       <div className="flex flex-wrap gap-1 justify-end max-w-48">
                         {buyerNames.slice(0, 2).map((name: string) => (

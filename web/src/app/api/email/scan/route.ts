@@ -12,7 +12,10 @@ interface ClassificationResult {
   reasoning: string;
 }
 
-export async function POST() {
+export async function POST(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const rescan = searchParams.get("rescan") === "1";
+
   const supabase = await createClient() as any;
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -35,10 +38,20 @@ export async function POST() {
   try {
     const auth = await getAuthedClient(agent.id);
 
-    const after = agent.gmail_last_scan_at
-      || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    // Rescan: clear old communications and reset time window
+    if (rescan) {
+      await admin
+        .from("communications")
+        .delete()
+        .eq("agent_id", agent.id)
+        .eq("type", "email");
+    }
 
-    console.log("[email-scan] agent:", agent.id, "email:", agent.email, "after:", after);
+    const after = rescan
+      ? new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
+      : (agent.gmail_last_scan_at || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+
+    console.log("[email-scan] agent:", agent.id, "email:", agent.email, "after:", after, "rescan:", rescan);
 
     const emails = await fetchRecentEmails(auth, agent.email, 30, after);
 

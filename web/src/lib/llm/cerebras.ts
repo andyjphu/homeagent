@@ -13,7 +13,7 @@ export async function cerebrasComplete(
   options?: { maxTokens?: number; temperature?: number }
 ): Promise<string> {
   const response = await getClient().chat.completions.create({
-    model: "llama-3.3-70b",
+    model: "llama3.1-8b",
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
@@ -31,7 +31,7 @@ export async function cerebrasJSON<T>(
   options?: { maxTokens?: number }
 ): Promise<T> {
   const response = await getClient().chat.completions.create({
-    model: "llama-3.3-70b",
+    model: "llama3.1-8b",
     messages: [
       {
         role: "system",

@@ -93,6 +93,7 @@ export function EmailInbox() {
   const [creatingLead, setCreatingLead] = useState<string | null>(null);
   const [createdLeads, setCreatedLeads] = useState<Set<string>>(new Set());
   const [replyTo, setReplyTo] = useState<EmailMessage | null>(null);
+  const [scanning, setScanning] = useState(false);
 
   const fetchEmails = useCallback(async () => {
     setLoading(true);
@@ -116,9 +117,14 @@ export function EmailInbox() {
   }, [fetchEmails]);
 
   useEffect(() => {
-    const handler = () => fetchEmails();
-    window.addEventListener("emails-updated", handler);
-    return () => window.removeEventListener("emails-updated", handler);
+    const onUpdated = () => { setScanning(false); fetchEmails(); };
+    const onScanStart = () => setScanning(true);
+    window.addEventListener("emails-updated", onUpdated);
+    window.addEventListener("scan-started", onScanStart);
+    return () => {
+      window.removeEventListener("emails-updated", onUpdated);
+      window.removeEventListener("scan-started", onScanStart);
+    };
   }, [fetchEmails]);
 
   const classifiedCount = useMemo(() => {
@@ -177,6 +183,22 @@ export function EmailInbox() {
 
   return (
     <div className="space-y-4">
+      {scanning && (
+        <style>{`
+          @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+          }
+          .shimmer-text {
+            background: linear-gradient(90deg, currentColor 25%, rgba(139,92,246,0.7) 50%, currentColor 75%);
+            background-size: 200% 100%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 2s ease-in-out infinite;
+          }
+        `}</style>
+      )}
       {hasClassifications && (
         <div className="flex items-center justify-between">
           <PieChart data={pieData} />
@@ -188,7 +210,10 @@ export function EmailInbox() {
 
       <div>
         <div className="flex items-center justify-between mb-2">
-          <p className="text-xs text-muted-foreground">{emails.length} emails &middot; last 14 days</p>
+          <p className="text-xs text-muted-foreground">
+            {emails.length} emails &middot; last 14 days
+            {scanning && <span className="ml-2 shimmer-text font-medium">Classifying...</span>}
+          </p>
           <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={fetchEmails}>
             <RefreshCw className="h-3 w-3 mr-1" />
             Refresh
@@ -221,10 +246,10 @@ export function EmailInbox() {
                   <span className="text-sm font-medium w-36 truncate shrink-0">
                     {email.direction === "inbound" ? fromName : email.to}
                   </span>
-                  <span className="text-sm truncate flex-1 min-w-0">
+                  <span className={`text-sm truncate flex-1 min-w-0 ${scanning && !email.classification ? "shimmer-text" : ""}`}>
                     <span className="font-medium">{email.subject || "(no subject)"}</span>
                     {!isExpanded && email.snippet && (
-                      <span className="text-muted-foreground"> — {email.snippet}</span>
+                      <span className={scanning && !email.classification ? "" : "text-muted-foreground"}> — {email.snippet}</span>
                     )}
                   </span>
                   {email.buyerName && (

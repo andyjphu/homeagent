@@ -13,6 +13,7 @@ export function ScanButton() {
   async function handleScan(rescan = false) {
     setScanning(true);
     setResult(null);
+    window.dispatchEvent(new Event("scan-started"));
     try {
       const url = rescan ? "/api/email/scan?rescan=1" : "/api/email/scan";
       const res = await fetch(url, { method: "POST" });

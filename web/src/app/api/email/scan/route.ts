@@ -53,7 +53,7 @@ export async function POST(request: Request) {
 
     console.log("[email-scan] agent:", agent.id, "email:", agent.email, "after:", after, "rescan:", rescan);
 
-    const emails = await fetchRecentEmails(auth, agent.email, 15, after);
+    const emails = await fetchRecentEmails(auth, agent.email, 25, after);
 
     console.log("[email-scan] fetched", emails.length, "emails from Gmail");
 

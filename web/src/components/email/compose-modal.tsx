@@ -87,14 +87,14 @@ export function ComposeModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] flex flex-col overflow-hidden" style={{ maxWidth: "min(672px, calc(100% - 2rem))" }}>
         <DialogHeader>
           <DialogTitle>
             {inReplyTo ? "Reply" : "Compose Email"}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-3">
+        <div className="space-y-3 flex-1 min-h-0 flex flex-col">
           <div className="space-y-1">
             <Label className="text-xs">To</Label>
             <Input
@@ -113,14 +113,13 @@ export function ComposeModal({
             />
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1 flex-1 min-h-0 flex flex-col">
             <Label className="text-xs">Body</Label>
             <Textarea
               value={body}
               onChange={(e) => setBody(e.target.value)}
               placeholder="Write your email..."
-              rows={12}
-              className="font-sans text-sm"
+              className="font-sans text-sm flex-1 min-h-[200px] resize-y"
             />
           </div>
 
@@ -128,7 +127,7 @@ export function ComposeModal({
             <p className="text-xs text-destructive">{error}</p>
           )}
 
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 shrink-0">
             <Button
               variant="outline"
               size="sm"

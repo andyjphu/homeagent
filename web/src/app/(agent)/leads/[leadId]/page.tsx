@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Check, X, Loader2, ExternalLink } from "lucide-react";
+import { ArrowLeft, Check, X, Loader2, ExternalLink, Phone } from "lucide-react";
 import Link from "next/link";
 
 export default function LeadDetailPage() {
@@ -26,7 +26,7 @@ export default function LeadDetailPage() {
       const supabase = createClient() as any;
       const { data } = await supabase
         .from("leads")
-        .select("*, communications:source_communication_id(gmail_message_id, gmail_thread_id, subject, from_address)")
+        .select("*, communications:source_communication_id(type, gmail_message_id, gmail_thread_id, subject, from_address, recording_url, raw_content, duration_seconds, ai_analysis)")
         .eq("id", params.leadId as string)
         .single();
       setLead(data);
@@ -218,6 +218,51 @@ export default function LeadDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Call recording — audio player + transcript */}
+      {lead.source === "call" && lead.communications?.recording_url && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Phone className="h-4 w-4" />
+              Call Recording
+              {lead.communications.duration_seconds && (
+                <span className="text-xs font-normal text-muted-foreground">
+                  {Math.floor(lead.communications.duration_seconds / 60)}m{" "}
+                  {lead.communications.duration_seconds % 60}s
+                </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <audio
+              controls
+              src={lead.communications.recording_url}
+              className="w-full"
+            />
+            {lead.communications.raw_content && (
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  Transcript
+                </Label>
+                <p className="text-sm whitespace-pre-wrap mt-1 bg-muted p-3 rounded-md">
+                  {lead.communications.raw_content}
+                </p>
+              </div>
+            )}
+            {(lead.communications.ai_analysis as any)?.summary && (
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  AI Summary
+                </Label>
+                <p className="text-sm mt-1">
+                  {(lead.communications.ai_analysis as any).summary}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Source content */}
       {lead.raw_source_content && (

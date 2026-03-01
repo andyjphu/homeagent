@@ -12,6 +12,7 @@ import {
   Building2,
   TrendingUp,
   Clock,
+  Phone,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -194,7 +195,10 @@ export default async function DashboardPage() {
                       <p className="font-medium">
                         {lead.name || "Unknown Contact"}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        {lead.source === "call" && (
+                          <Phone className="h-3 w-3" />
+                        )}
                         via {lead.source} &middot;{" "}
                         {new Date(lead.detected_at).toLocaleDateString()}
                       </p>

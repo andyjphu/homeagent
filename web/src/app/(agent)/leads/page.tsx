@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UserPlus, Plus } from "lucide-react";
+import { UserPlus, Plus, Phone } from "lucide-react";
 import Link from "next/link";
 import { LeadForm } from "@/components/leads/lead-form";
 
@@ -116,7 +116,10 @@ function LeadCard({ lead }: { lead: any }) {
               >
                 {lead.confidence}
               </Badge>
-              <Badge variant="outline">{lead.source}</Badge>
+              <Badge variant="outline" className="flex items-center gap-1">
+                {lead.source === "call" && <Phone className="h-3 w-3" />}
+                {lead.source}
+              </Badge>
             </div>
             <div className="flex gap-4 text-sm text-muted-foreground">
               {lead.email && <span>{lead.email}</span>}

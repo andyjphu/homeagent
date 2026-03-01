@@ -55,9 +55,18 @@ export async function GET() {
     });
 
     return NextResponse.json({ emails: merged });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
+  } catch (err: any) {
+    const msg = err?.response?.data?.error || err?.message || "Unknown error";
     console.error("[email-inbox] error:", msg, err);
+
+    // If token is invalid, tell the user to reconnect
+    if (msg === "invalid_grant" || msg === "invalid_request") {
+      return NextResponse.json(
+        { error: "Gmail session expired. Please reconnect Gmail in Settings." },
+        { status: 401 }
+      );
+    }
+
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

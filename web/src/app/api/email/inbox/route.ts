@@ -41,7 +41,7 @@ export async function GET() {
     );
 
     const merged = emails.map((email) => {
-      const cls = classMap.get(email.id);
+      const cls = classMap.get(email.id) as any;
       return {
         ...email,
         classification: cls?.classification || null,

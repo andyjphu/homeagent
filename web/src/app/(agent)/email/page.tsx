@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Mail, Plug } from "lucide-react";
-import Link from "next/link";
 import { ScanButton } from "@/components/email/scan-button";
 
 export default async function EmailPage() {
@@ -32,9 +31,9 @@ export default async function EmailPage() {
               Connect your Gmail to enable automatic lead detection, email
               analysis, and AI-drafted responses.
             </p>
-            <Link href="/settings">
+            <a href="/api/email/connect">
               <Button>Connect Gmail</Button>
-            </Link>
+            </a>
           </CardContent>
         </Card>
       </div>

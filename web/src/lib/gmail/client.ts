@@ -42,7 +42,7 @@ export async function fetchRecentEmails(
 
   // Fetch in batches of 5 to avoid rate limits and timeouts
   const BATCH_SIZE = 5;
-  const messages = [];
+  const messages: Awaited<ReturnType<typeof gmail.users.messages.get>>[] = [];
   for (let i = 0; i < messageIds.length; i += BATCH_SIZE) {
     const batch = messageIds.slice(i, i + BATCH_SIZE);
     const results = await Promise.all(

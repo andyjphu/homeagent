@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HomeAgent AI",
-  description: "AI-powered intelligence layer for buyer's agents",
+  title: "HomeAgent",
+  description: "The command center for buyer's agents",
 };
 
 export default function RootLayout({

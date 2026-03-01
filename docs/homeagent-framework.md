@@ -1,10 +1,12 @@
-# HomeAgent AI — Complete Product Framework
+# HomeAgent — Complete Product Framework
 
 ---
 
 # The Pitch (10 seconds)
 
-An AI-powered intelligence layer for buyer's agents that uses Browser Use to automate research, reads emails, listens to calls, automatically detects new leads, and turns every interaction into asymmetric negotiation advantage — from first contact to closing day.
+The command center for buyer's agents — manage leads, curate property shortlists, share private dashboards with clients, and track deals from first contact to closing day. Built to help agents prove their value in a post-NAR settlement world.
+
+> **Note on AI:** The platform can optionally leverage LLM capabilities (property matching, email classification, market analysis) as enhancements, but the core product stands on its own as a workflow tool. AI is the accelerant, not the product.
 
 ---
 
@@ -520,4 +522,61 @@ The orchestration core is event-driven. Key events and what they trigger:
 
 → Contingency timeline appears. Inspection report uploaded → 40-page PDF analyzed in seconds → prioritized summary with negotiation strategy. Appraisal scenarios pre-computed.
 
-**"Every interaction — every email, every call, every click on the dashboard — makes the system smarter. Not just for this deal. For every deal Mike will ever do. That's HomeAgent AI."**
+**"Every interaction — every email, every call, every click on the dashboard — makes the system smarter. Not just for this deal. For every deal Mike will ever do. That's HomeAgent."**
+
+---
+
+# Strategic Addendum (March 2026)
+
+## Honest Assessment
+
+The vision above (Phases 1–13) is the long-term north star. It is NOT the current product. The current build focuses on two core experiences:
+
+1. **Agent Command Center** — lead management, buyer portfolio, deal tracking, property curation
+2. **Buyer Private Dashboard** — token-based property browsing, favorites, comments, filters
+
+Everything else is either a minimum viable stub or documented for future work. See `CLAUDE.md` at the project root for the full feature tier breakdown and build priorities.
+
+## Key Strategic Shifts
+
+### AI is the accelerant, not the product
+The original pitch led with "AI-powered intelligence layer." This has been reframed. HomeAgent is a **workflow and productivity tool** for buyer's agents. AI features (property scoring, email classification, negotiation analysis) are optional enhancements that can be toggled on. The product must stand on its own without any LLM calls.
+
+**Rationale:** Competing on "AI" puts us against Rechat, LionDesk, kvCORE and every other CRM adding AI features. Competing on "the best command center for buyer's agents in a post-NAR world" is a more defensible position.
+
+### No scraping — legal data sources only
+The original framework assumed Zillow/Redfin scraping via Browser Use. This has been dropped. Property data comes from:
+- Agent manual entry (MVP)
+- MLS API feeds (Bridge Interactive, Spark/RESO) when available
+- Public APIs (GreatSchools, Google Maps) for enrichment
+
+**Rationale:** Scraping is a ToS violation, technically fragile (CAPTCHAs, rate limiting), and a legal liability. MLS APIs are the correct path.
+
+### NAR settlement is the market catalyst
+The 2024 NAR settlement requires buyer-broker agreements before showings and decoupled buyer's agent compensation from MLS. This means:
+- Agents must demonstrate value to earn their commission
+- The buyer dashboard serves as a transparent work log
+- Property curation with reasoning proves expertise
+- Deal tracking shows complexity being managed
+
+All feature design and marketing copy should frame HomeAgent as **the tool that helps agents prove their worth**, not "AI that replaces agent work."
+
+## Competitive Landscape
+
+Direct competitors (agent CRMs with AI):
+- **Follow Up Boss** — lead management, automated follow-ups
+- **kvCORE (Inside Real Estate)** — full platform, IDX, AI assistant
+- **LionDesk** — AI-integrated CRM, texting, video messaging
+- **Rechat** — AI-first, marketing + CRM + transaction mgmt
+- **Lofty (formerly Chime)** — AI assistant + CRM + IDX
+
+Our gap: None of these focus on the **buyer's agent workflow specifically** or on **buyer transparency** (the private dashboard). Most are lead-gen focused (seller/listing side). The NAR settlement creates new demand for buyer-agent-specific tooling that these platforms haven't addressed.
+
+## What to Build Next (Priority Order)
+
+1. Make Tier 1 features (command center + buyer dashboard) production-quality with real data flowing
+2. Connect Supabase auth end-to-end (signup → agent record → dashboard access)
+3. Build manual property entry flow (agent adds properties, ranks them, sends to buyer)
+4. Add basic email integration (Gmail read-only, grouped by buyer)
+5. Evaluate MLS API providers and pricing for property data feed
+6. Add optional AI scoring toggle (Cerebras for fast scoring, clearly labeled as AI-suggested)

@@ -4,7 +4,7 @@ from models.tasks import TaskRequest, TaskResponse, TaskStatus
 from agents.zillow_search import ZillowSearchAgent
 from queue.manager import queue_manager
 
-app = FastAPI(title="HomeAgent Browser Agent Service")
+app = FastAPI(title="HomeAgent Browser Agent")
 
 app.add_middleware(
     CORSMiddleware,

@@ -1,4 +1,4 @@
--- HomeAgent AI - Initial Database Schema
+-- HomeAgent - Initial Database Schema
 -- ============================================================
 -- ENUMS
 -- ============================================================

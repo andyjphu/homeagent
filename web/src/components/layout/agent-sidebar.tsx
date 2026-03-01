@@ -45,7 +45,7 @@ export function AgentSidebar({ agentName }: { agentName: string }) {
     <aside className="flex h-screen w-64 flex-col border-r bg-card">
       <div className="flex items-center gap-2 p-6">
         <Building2 className="h-6 w-6 text-primary" />
-        <span className="text-lg font-bold">HomeAgent AI</span>
+        <span className="text-lg font-bold">HomeAgent</span>
       </div>
       <Separator />
       <nav className="flex-1 space-y-1 p-3">

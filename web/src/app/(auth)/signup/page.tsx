@@ -38,14 +38,18 @@ export default function SignupPage() {
     }
 
     if (data.user) {
-      // Create agent record
-      const { error: agentError } = await supabase.from("agents").insert({
-        user_id: data.user.id,
-        email,
-        full_name: fullName,
+      // Create agent record via admin API route (bypasses RLS)
+      const res = await fetch("/api/auth/setup-agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: data.user.id,
+          email,
+          fullName,
+        }),
       });
 
-      if (agentError) {
+      if (!res.ok) {
         setError("Account created but failed to set up profile. Please contact support.");
         setLoading(false);
         return;
@@ -61,7 +65,7 @@ export default function SignupPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
-          <CardDescription>Set up your HomeAgent AI command center</CardDescription>
+          <CardDescription>Set up your HomeAgent command center</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSignup} className="space-y-4">

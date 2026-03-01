@@ -1,4 +1,4 @@
-# HomeAgent AI — Claude Code Build Prompts
+# HomeAgent — Claude Code Build Prompts
 
 > **How to use this:** Run these prompts sequentially in Claude Code sessions. Each prompt is scoped to ~1 session of work. Later prompts reference earlier ones. Adjust the tech stack choices if you have preferences — these defaults are opinionated toward speed-to-demo.
 

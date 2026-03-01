@@ -71,7 +71,7 @@ export default async function BuyerDashboardPage({
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-primary" />
-            <span className="font-semibold">HomeAgent AI</span>
+            <span className="font-semibold">HomeAgent</span>
           </div>
           <p className="text-sm text-muted-foreground">
             Welcome, {buyer.full_name}

@@ -1,16 +1,18 @@
 import OpenAI from "openai";
 
-const cerebras = new OpenAI({
-  apiKey: process.env.CEREBRAS_API_KEY!,
-  baseURL: "https://api.cerebras.ai/v1",
-});
+function getClient() {
+  return new OpenAI({
+    apiKey: process.env.CEREBRAS_API_KEY || "",
+    baseURL: "https://api.cerebras.ai/v1",
+  });
+}
 
 export async function cerebrasComplete(
   systemPrompt: string,
   userPrompt: string,
   options?: { maxTokens?: number; temperature?: number }
 ): Promise<string> {
-  const response = await cerebras.chat.completions.create({
+  const response = await getClient().chat.completions.create({
     model: "llama-3.3-70b",
     messages: [
       { role: "system", content: systemPrompt },
@@ -28,7 +30,7 @@ export async function cerebrasJSON<T>(
   userPrompt: string,
   options?: { maxTokens?: number }
 ): Promise<T> {
-  const response = await cerebras.chat.completions.create({
+  const response = await getClient().chat.completions.create({
     model: "llama-3.3-70b",
     messages: [
       {

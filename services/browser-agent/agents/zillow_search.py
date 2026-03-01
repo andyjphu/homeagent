@@ -91,7 +91,10 @@ Return the results as a JSON array. Return ONLY the JSON array, no other text.""
                     result = await search_agent.run()
 
                 result_text = self.extract_result(result)
+                print(f"[DEBUG] Page {page_num}: extract_result type={type(result_text)}, len={len(str(result_text))}")
+                print(f"[DEBUG] Page {page_num}: extract_result preview: {repr(str(result_text)[:200])}")
                 listings = self.parse_json(result_text)
+                print(f"[DEBUG] Page {page_num}: parse_json type={type(listings)}, value={'list of '+str(len(listings)) if isinstance(listings, list) else repr(str(listings)[:100])}")
                 if isinstance(listings, list):
                     new_count = 0
                     for item in listings:

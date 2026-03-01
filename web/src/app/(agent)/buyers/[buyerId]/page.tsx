@@ -44,12 +44,6 @@ export default async function BuyerDetailPage({
     .eq("buyer_id", buyerId)
     .order("match_score", { ascending: false });
 
-  const { data: deals } = await supabase
-    .from("deals")
-    .select("*, properties(*)")
-    .eq("buyer_id", buyerId)
-    .order("created_at", { ascending: false });
-
   const { data: communications } = await supabase
     .from("communications")
     .select("*")
@@ -115,7 +109,6 @@ export default async function BuyerDetailPage({
           <TabsTrigger value="properties">
             Properties ({scores?.length ?? 0})
           </TabsTrigger>
-          <TabsTrigger value="deals">Deals ({deals?.length ?? 0})</TabsTrigger>
           <TabsTrigger value="communications">
             Comms ({communications?.length ?? 0})
           </TabsTrigger>
@@ -296,39 +289,6 @@ export default async function BuyerDetailPage({
                 </Card>
               );
             })
-          )}
-        </TabsContent>
-
-        {/* Deals tab */}
-        <TabsContent value="deals" className="space-y-3 mt-4">
-          {(!deals || deals.length === 0) ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <p className="text-muted-foreground">No deals yet.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            deals.map((deal: any) => (
-              <Link key={deal.id} href={`/deals/${deal.id}`}>
-                <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">
-                          {deal.properties?.address}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          ${deal.properties?.listing_price?.toLocaleString()}
-                        </p>
-                      </div>
-                      <Badge variant="outline">
-                        {deal.stage.replace(/_/g, " ")}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))
           )}
         </TabsContent>
 

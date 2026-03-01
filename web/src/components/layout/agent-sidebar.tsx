@@ -7,13 +7,10 @@ import {
   LayoutDashboard,
   UserPlus,
   Users,
-  Handshake,
   Building2,
   Mail,
-  Phone,
   Settings,
   LogOut,
-  Bell,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -24,10 +21,8 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/leads", label: "Leads", icon: UserPlus },
   { href: "/buyers", label: "Buyers", icon: Users },
-  { href: "/deals", label: "Deals", icon: Handshake },
   { href: "/properties", label: "Properties", icon: Building2 },
   { href: "/email", label: "Email", icon: Mail },
-  { href: "/calls", label: "Calls", icon: Phone },
 ];
 
 export function AgentSidebar({ agentName }: { agentName: string }) {

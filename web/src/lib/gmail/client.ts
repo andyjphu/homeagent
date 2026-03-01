@@ -1,5 +1,6 @@
 import { google, gmail_v1 } from "googleapis";
 import type { OAuth2Client } from "google-auth-library";
+import type { GaxiosResponseWithHTTP2 } from "googleapis-common";
 
 export interface GmailMessage {
   id: string;
@@ -42,7 +43,7 @@ export async function fetchRecentEmails(
 
   // Fetch in batches of 5 to avoid rate limits and timeouts
   const BATCH_SIZE = 5;
-  const messages: Awaited<ReturnType<typeof gmail.users.messages.get>>[] = [];
+  const messages: GaxiosResponseWithHTTP2<gmail_v1.Schema$Message>[] = [];
   for (let i = 0; i < messageIds.length; i += BATCH_SIZE) {
     const batch = messageIds.slice(i, i + BATCH_SIZE);
     const results = await Promise.all(

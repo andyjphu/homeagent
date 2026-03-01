@@ -63,7 +63,7 @@ export default async function BuyerDetailPage({
 
   const intent = (buyer.intent_profile || {}) as any;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const dashboardUrl = `${appUrl}/buyer/${buyer.dashboard_token}`;
+  const dashboardUrl = `${appUrl}/d/${buyer.dashboard_token}`;
 
   return (
     <div className="space-y-6">

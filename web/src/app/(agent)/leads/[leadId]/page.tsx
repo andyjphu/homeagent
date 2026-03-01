@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Check, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, X, Loader2, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
 export default function LeadDetailPage() {
@@ -26,7 +26,7 @@ export default function LeadDetailPage() {
       const supabase = createClient() as any;
       const { data } = await supabase
         .from("leads")
-        .select("*")
+        .select("*, communications:source_communication_id(gmail_message_id, gmail_thread_id, subject, from_address)")
         .eq("id", params.leadId as string)
         .single();
       setLead(data);
@@ -224,7 +224,20 @@ export default function LeadDetailPage() {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Source Content</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base">Source Content</CardTitle>
+                {lead.communications?.gmail_message_id && (
+                  <a
+                    href={`https://mail.google.com/mail/u/0/#inbox/${lead.communications.gmail_message_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    View in Gmail
+                  </a>
+                )}
+              </div>
               <Button
                 variant="outline"
                 size="sm"
@@ -241,6 +254,14 @@ export default function LeadDetailPage() {
                 )}
               </Button>
             </div>
+            {lead.communications?.subject && (
+              <p className="text-xs text-muted-foreground mt-1">
+                <span className="font-medium">Subject:</span> {lead.communications.subject}
+                {lead.communications.from_address && (
+                  <> &middot; <span className="font-medium">From:</span> {lead.communications.from_address}</>
+                )}
+              </p>
+            )}
           </CardHeader>
           <CardContent>
             <p className="text-sm whitespace-pre-wrap text-muted-foreground">

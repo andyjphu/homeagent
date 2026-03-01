@@ -1,0 +1,298 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Search,
+  ChevronDown,
+  ChevronRight,
+  CheckCircle2,
+  AlertTriangle,
+  Loader2,
+  Circle,
+} from "lucide-react";
+
+interface ExecutionEvent {
+  timestamp: string;
+  action: string;
+  data?: any;
+}
+
+interface Task {
+  id: string;
+  task_type: string;
+  status: string;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  failed_at: string | null;
+  error_message: string | null;
+  execution_log: ExecutionEvent[] | null;
+  output_data: any;
+}
+
+const EVENT_LABELS: Record<string, (data?: any) => string> = {
+  pipeline_start: () => "Pipeline started",
+  stage_zillow_start: () => "Searching Zillow...",
+  stage_zillow_done: (d) => `Found ${d?.property_count ?? "?"} properties on Zillow`,
+  stage_zillow_failed: (d) => `Zillow search failed: ${d?.error ?? "unknown error"}`,
+  no_properties_found: () => "No properties found",
+  stage_crossref_start: (d) => `Enriching ${d?.property_count ?? "?"} properties...`,
+  crossref_start: (d) => `Enriching ${d?.address ?? "property"} (${d?.index}/${d?.total})`,
+  property_enriched: (d) => `Updated: ${d?.fields_updated?.join(", ") ?? "enriched"}`,
+  property_no_enrichment: () => "No enrichment data found",
+  property_not_found: () => "Property not found in database",
+  school_failed: (d) => `School search failed for ${d?.address ?? "property"}`,
+  walkscore_failed: (d) => `Walk score failed for ${d?.address ?? "property"}`,
+  commute_failed: (d) => `Commute calculation failed for ${d?.address ?? "property"}`,
+  pipeline_complete: (d) =>
+    `Complete: ${d?.property_ids?.length ?? 0} properties, ${d?.enriched ?? 0} enriched`,
+  search_page_start: (d) => `Searching page ${d?.page ?? "?"}`,
+  search_page_done: (d) => `Page ${d?.page}: found ${d?.found ?? 0} listings`,
+  search_complete: (d) => `Search complete: ${d?.total_listings ?? 0} total listings`,
+};
+
+const WARN_EVENTS = new Set([
+  "school_failed",
+  "walkscore_failed",
+  "commute_failed",
+  "stage_zillow_failed",
+  "property_not_found",
+  "property_no_enrichment",
+  "search_page_parse_error",
+  "search_page_error",
+]);
+
+const SUCCESS_EVENTS = new Set([
+  "pipeline_complete",
+  "property_enriched",
+  "stage_zillow_done",
+  "search_complete",
+]);
+
+// Events to show by default (hide noisy sub-events unless expanded)
+const PRIMARY_EVENTS = new Set([
+  "pipeline_start",
+  "stage_zillow_start",
+  "stage_zillow_done",
+  "stage_zillow_failed",
+  "no_properties_found",
+  "stage_crossref_start",
+  "crossref_start",
+  "property_enriched",
+  "pipeline_complete",
+  "search_complete",
+]);
+
+function formatEventLabel(event: ExecutionEvent): string {
+  const formatter = EVENT_LABELS[event.action];
+  if (formatter) return formatter(event.data);
+  return event.action.replace(/_/g, " ");
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+function EventIcon({ action }: { action: string }) {
+  if (WARN_EVENTS.has(action)) {
+    return <AlertTriangle className="h-3 w-3 text-amber-500 shrink-0" />;
+  }
+  if (SUCCESS_EVENTS.has(action)) {
+    return <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />;
+  }
+  return <Circle className="h-2.5 w-2.5 text-muted-foreground shrink-0 ml-px" />;
+}
+
+function TaskTimeline({ events, isRunning }: { events: ExecutionEvent[]; isRunning: boolean }) {
+  const [showAll, setShowAll] = useState(false);
+  const displayed = showAll ? events : events.filter((e) => PRIMARY_EVENTS.has(e.action) || WARN_EVENTS.has(e.action));
+  const hiddenCount = events.length - displayed.length;
+
+  return (
+    <div className="mt-3 space-y-0">
+      <div className="relative pl-4 border-l border-border space-y-1.5">
+        {displayed.map((event, i) => {
+          const isLast = i === displayed.length - 1;
+          const isActive = isRunning && isLast;
+
+          return (
+            <div key={`${event.timestamp}-${event.action}-${i}`} className="flex items-start gap-2 relative">
+              <div className="absolute -left-[calc(1rem+4.5px)] top-1.5">
+                <EventIcon action={event.action} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className={`text-xs ${isActive ? "font-medium" : "text-muted-foreground"}`}>
+                  {isActive && (
+                    <Loader2 className="h-3 w-3 animate-spin inline mr-1 -mt-0.5" />
+                  )}
+                  {formatEventLabel(event)}
+                </span>
+              </div>
+              <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
+                {formatTime(event.timestamp)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {hiddenCount > 0 && (
+        <button
+          className="text-[10px] text-muted-foreground hover:text-foreground ml-4 mt-1"
+          onClick={() => setShowAll(!showAll)}
+        >
+          {showAll ? "Show less" : `+${hiddenCount} more events`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+export function ResearchTaskList({ buyerId }: { buyerId: string }) {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const fetchTasks = useCallback(async () => {
+    const supabase = createClient() as any;
+    const { data } = await supabase
+      .from("agent_tasks")
+      .select("id, task_type, status, created_at, started_at, completed_at, failed_at, error_message, execution_log, output_data")
+      .eq("buyer_id", buyerId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (data) {
+      setTasks(data);
+      // Auto-expand the first running/queued task
+      const active = data.find((t: Task) => t.status === "running" || t.status === "queued");
+      if (active) setExpandedId(active.id);
+    }
+    setLoading(false);
+  }, [buyerId]);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
+
+  // Poll while any task is running/queued
+  useEffect(() => {
+    const hasActive = tasks.some((t) => t.status === "running" || t.status === "queued");
+    if (!hasActive) return;
+
+    const interval = setInterval(fetchTasks, 3000);
+    return () => clearInterval(interval);
+  }, [tasks, fetchTasks]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-sm text-muted-foreground">Loading research tasks...</span>
+      </div>
+    );
+  }
+
+  if (tasks.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">
+            No research tasks yet. Click &quot;Run Research&quot; to start.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {tasks.map((task) => {
+        const isExpanded = expandedId === task.id;
+        const isActive = task.status === "running" || task.status === "queued";
+        const events = task.execution_log ?? [];
+
+        return (
+          <Card key={task.id} className={isActive ? "border-primary/30" : undefined}>
+            <CardContent className="p-4">
+              <div
+                className="flex items-center justify-between cursor-pointer"
+                onClick={() => setExpandedId(isExpanded ? null : task.id)}
+              >
+                <div className="flex items-center gap-2">
+                  {events.length > 0 ? (
+                    isExpanded ? (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                    )
+                  ) : (
+                    <div className="w-4" />
+                  )}
+                  <div>
+                    <p className="font-medium text-sm">
+                      {task.task_type.replace(/_/g, " ")}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(task.created_at).toLocaleString()}
+                      {task.completed_at &&
+                        ` · Completed ${new Date(task.completed_at).toLocaleString()}`}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {isActive && (
+                    <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                  )}
+                  <Badge
+                    variant={
+                      task.status === "completed"
+                        ? "default"
+                        : task.status === "running"
+                          ? "secondary"
+                          : task.status === "failed"
+                            ? "destructive"
+                            : "outline"
+                    }
+                  >
+                    {task.status}
+                  </Badge>
+                </div>
+              </div>
+
+              {isExpanded && (
+                <div className="mt-2">
+                  {task.error_message && (
+                    <p className="text-xs text-destructive bg-destructive/10 rounded px-2 py-1.5 mb-2">
+                      {task.error_message}
+                    </p>
+                  )}
+
+                  {task.output_data && task.status === "completed" && (
+                    <div className="flex gap-4 text-xs text-muted-foreground bg-muted rounded px-2 py-1.5 mb-2">
+                      <span>{task.output_data.properties_found ?? 0} properties found</span>
+                      <span>{task.output_data.properties_enriched ?? 0} enriched</span>
+                    </div>
+                  )}
+
+                  {events.length > 0 ? (
+                    <TaskTimeline events={events} isRunning={isActive} />
+                  ) : isActive ? (
+                    <p className="text-xs text-muted-foreground ml-6">Waiting for pipeline to start...</p>
+                  ) : null}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}

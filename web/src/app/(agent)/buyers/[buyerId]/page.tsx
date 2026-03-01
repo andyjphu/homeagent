@@ -6,7 +6,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft,
   ExternalLink,
-  Search,
   Building2,
 } from "lucide-react";
 import Link from "next/link";
@@ -15,6 +14,8 @@ import { ResearchTrigger } from "@/components/buyers/research-trigger";
 import { SendToBuyerToggle } from "@/components/buyers/send-to-buyer-toggle";
 import { EmailSummaryButton } from "@/components/buyers/email-summary-button";
 import { CopyLinkButton } from "@/components/buyers/copy-link-button";
+import { ResearchTaskList } from "@/components/buyers/research-task-list";
+import { AddPropertyButton } from "@/components/buyers/add-property-button";
 
 export default async function BuyerDetailPage({
   params,
@@ -53,13 +54,6 @@ export default async function BuyerDetailPage({
     .eq("buyer_id", buyerId as string)
     .order("occurred_at", { ascending: false })
     .limit(20) as { data: any[] | null };
-
-  const { data: tasks } = await supabase
-    .from("agent_tasks")
-    .select("*")
-    .eq("buyer_id", buyerId as string)
-    .order("created_at", { ascending: false })
-    .limit(10) as { data: any[] | null };
 
   const intent = (buyer.intent_profile || {}) as any;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -200,12 +194,15 @@ export default async function BuyerDetailPage({
 
         {/* Properties tab */}
         <TabsContent value="properties" className="space-y-3 mt-4">
+          <div className="flex justify-end">
+            <AddPropertyButton buyerId={buyerId} />
+          </div>
           {(!scores || scores.length === 0) ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">
-                  No properties scored yet. Run research to find matches.
+                  No properties yet. Add one manually or run research to find matches.
                 </p>
               </CardContent>
             </Card>
@@ -322,51 +319,8 @@ export default async function BuyerDetailPage({
         </TabsContent>
 
         {/* Research tab */}
-        <TabsContent value="research" className="space-y-3 mt-4">
-          {(!tasks || tasks.length === 0) ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">
-                  No research tasks yet. Click &quot;Run Research&quot; to start.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            tasks.map((task) => (
-              <Card key={task.id}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">
-                        {task.task_type.replace(/_/g, " ")}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Created: {new Date(task.created_at).toLocaleString()}
-                        {task.completed_at &&
-                          ` · Completed: ${new Date(
-                            task.completed_at
-                          ).toLocaleString()}`}
-                      </p>
-                    </div>
-                    <Badge
-                      variant={
-                        task.status === "completed"
-                          ? "default"
-                          : task.status === "running"
-                          ? "secondary"
-                          : task.status === "failed"
-                          ? "destructive"
-                          : "outline"
-                      }
-                    >
-                      {task.status}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
+        <TabsContent value="research" className="mt-4">
+          <ResearchTaskList buyerId={buyerId} />
         </TabsContent>
       </Tabs>
     </div>

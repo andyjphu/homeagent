@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Mail, Loader2, RefreshCw, UserPlus } from "lucide-react";
+import { Mail, Loader2, RefreshCw, UserPlus, Reply } from "lucide-react";
+import { ComposeModal } from "./compose-modal";
 
 interface EmailMessage {
   id: string;
@@ -91,6 +92,7 @@ export function EmailInbox() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [creatingLead, setCreatingLead] = useState<string | null>(null);
   const [createdLeads, setCreatedLeads] = useState<Set<string>>(new Set());
+  const [replyTo, setReplyTo] = useState<EmailMessage | null>(null);
 
   const fetchEmails = useCallback(async () => {
     setLoading(true);
@@ -282,6 +284,20 @@ export function EmailInbox() {
                     <pre className="text-sm whitespace-pre-wrap font-sans bg-background p-3 rounded border max-h-72 overflow-y-auto">
                       {email.body || "(no text content)"}
                     </pre>
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReplyTo(email);
+                        }}
+                      >
+                        <Reply className="h-3 w-3 mr-1" />
+                        Reply
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -289,6 +305,17 @@ export function EmailInbox() {
           })}
         </div>
       </div>
+
+      {replyTo && (
+        <ComposeModal
+          open={!!replyTo}
+          onOpenChange={(open) => { if (!open) setReplyTo(null); }}
+          initialTo={replyTo.direction === "inbound" ? replyTo.from : replyTo.to}
+          initialSubject={replyTo.subject.startsWith("Re:") ? replyTo.subject : `Re: ${replyTo.subject}`}
+          threadId={replyTo.threadId}
+          inReplyTo={replyTo.id}
+        />
+      )}
     </div>
   );
 }

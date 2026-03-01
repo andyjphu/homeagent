@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plug } from "lucide-react";
 import { ScanButton } from "@/components/email/scan-button";
+import { ComposeButton } from "@/components/email/compose-button";
 import { EmailInbox } from "@/components/email/email-inbox";
 
 export default async function EmailPage() {
@@ -51,7 +52,10 @@ export default async function EmailPage() {
             )}
           </p>
         </div>
-        <ScanButton />
+        <div className="flex gap-2">
+          <ComposeButton />
+          <ScanButton />
+        </div>
       </div>
 
       <EmailInbox />

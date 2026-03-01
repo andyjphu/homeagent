@@ -15,6 +15,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ResearchTrigger } from "@/components/buyers/research-trigger";
 import { SendToBuyerToggle } from "@/components/buyers/send-to-buyer-toggle";
+import { EmailSummaryButton } from "@/components/buyers/email-summary-button";
 
 export default async function BuyerDetailPage({
   params,
@@ -100,6 +101,7 @@ export default async function BuyerDetailPage({
           </div>
         </div>
         <div className="flex gap-2">
+          <EmailSummaryButton buyerId={buyer.id} />
           <ResearchTrigger buyerId={buyer.id} agentId={buyer.agent_id} intentProfile={intent} />
           <Button variant="outline" size="sm" asChild>
             <a href={dashboardUrl} target="_blank" rel="noopener noreferrer">

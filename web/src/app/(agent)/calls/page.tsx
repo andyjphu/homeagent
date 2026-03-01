@@ -1,8 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Phone, Upload } from "lucide-react";
+import { Phone } from "lucide-react";
 
 export default async function CallsPage() {
   const supabase = await createClient() as any;
@@ -35,10 +34,7 @@ export default async function CallsPage() {
             Track calls with buyers and leads
           </p>
         </div>
-        <Button disabled title="Coming soon">
-          <Upload className="h-4 w-4 mr-2" />
-          Upload Recording
-        </Button>
+        {/* TODO: Upload Recording button — re-enable when call recording is implemented */}
       </div>
 
       <div className="space-y-3">

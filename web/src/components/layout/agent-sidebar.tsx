@@ -9,6 +9,7 @@ import {
   Users,
   Building2,
   Mail,
+  Phone,
   Settings,
   LogOut,
 } from "lucide-react";
@@ -23,6 +24,7 @@ const navItems = [
   { href: "/buyers", label: "Buyers", icon: Users },
   { href: "/properties", label: "Properties", icon: Building2 },
   { href: "/email", label: "Email", icon: Mail },
+  { href: "/calls", label: "Calls", icon: Phone },
 ];
 
 export function AgentSidebar({ agentName }: { agentName: string }) {

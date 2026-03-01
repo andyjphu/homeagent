@@ -84,10 +84,27 @@ export async function POST(request: Request) {
 
   // Still running — return current state with live URL
   if (buStatus.status === "started" || buStatus.status === "created") {
+    // If we don't have the live URL yet, try fetching the session
+    let liveUrl = outputData.live_url ?? null;
+    if (!liveUrl && outputData.bu_session_id) {
+      try {
+        const { getSession } = await import("@/lib/browser-use/client");
+        const session = await getSession(outputData.bu_session_id);
+        if (session.liveUrl) {
+          liveUrl = session.liveUrl;
+          // Persist it so we don't have to fetch again
+          await updateTaskStatus(taskId, "running", {
+            output_data: { ...outputData, live_url: liveUrl },
+          });
+        }
+      } catch {
+        // Non-critical
+      }
+    }
     return NextResponse.json({
       stage,
       status: "running",
-      liveUrl: outputData.live_url ?? null,
+      liveUrl,
       buStatus: buStatus.status,
     });
   }

@@ -43,8 +43,9 @@ export async function POST(request: Request) {
 
   // Forward to Python Browser Agent service
   const browserAgentUrl = process.env.BROWSER_AGENT_URL || "http://localhost:8000";
+  let backendReachable = true;
   try {
-    await fetch(`${browserAgentUrl}/tasks`, {
+    const backendRes = await fetch(`${browserAgentUrl}/tasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -57,10 +58,13 @@ export async function POST(request: Request) {
         },
       }),
     });
+    if (!backendRes.ok) {
+      backendReachable = false;
+    }
   } catch (err) {
-    // Python service might not be running — task stays queued
+    backendReachable = false;
     console.warn("Browser agent service not available:", err);
   }
 
-  return NextResponse.json({ task });
+  return NextResponse.json({ task, backendReachable });
 }

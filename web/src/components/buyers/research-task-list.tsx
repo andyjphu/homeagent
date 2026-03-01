@@ -285,7 +285,18 @@ export function ResearchTaskList({ buyerId }: { buyerId: string }) {
                   {events.length > 0 ? (
                     <TaskTimeline events={events} isRunning={isActive} />
                   ) : isActive ? (
-                    <p className="text-xs text-muted-foreground ml-6">Waiting for pipeline to start...</p>
+                    <div className="ml-6 space-y-1">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Waiting for pipeline to start...
+                      </p>
+                      {Date.now() - new Date(task.created_at).getTime() > 30000 && (
+                        <p className="text-xs text-amber-600 flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3 shrink-0" />
+                          Research service may be unavailable. The task will run when the service comes online.
+                        </p>
+                      )}
+                    </div>
                   ) : null}
                 </div>
               )}

@@ -153,17 +153,26 @@ class BaseResearchAgent:
         ).eq("id", self.task_id).execute()
 
     async def save_property(self, property_data: dict) -> str:
-        """Save or update a property in the database. Upserts on zillow_url to avoid duplicates."""
+        """Save or update a property in the database. Deduplicates on zillow_url."""
         property_data["agent_id"] = self.agent_id
         property_data["research_task_id"] = self.task_id
         property_data["scraped_at"] = datetime.utcnow().isoformat()
 
-        if property_data.get("zillow_url"):
-            result = supabase.table("properties").upsert(
-                property_data, on_conflict="zillow_url"
-            ).execute()
-        else:
-            result = supabase.table("properties").insert(property_data).execute()
+        # Check for existing property by zillow_url to avoid duplicates
+        zillow_url = property_data.get("zillow_url")
+        if zillow_url:
+            existing = (
+                supabase.table("properties")
+                .select("id")
+                .eq("zillow_url", zillow_url)
+                .execute()
+            )
+            if existing.data:
+                prop_id = existing.data[0]["id"]
+                supabase.table("properties").update(property_data).eq("id", prop_id).execute()
+                return prop_id
+
+        result = supabase.table("properties").insert(property_data).execute()
         return result.data[0]["id"]
 
     async def save_listing_agent(self, agent_data: dict) -> str:
@@ -206,19 +215,19 @@ class BaseResearchAgent:
     def extract_result(self, result) -> str | None:
         """Extract text content from an AgentHistoryList result.
 
-        Merges final_result() and extracted_content() for best coverage.
+        Prefers final_result() (the clean output from the agent's done action).
+        Falls back to extracted_content() only when final_result is empty.
+        Merging both caused parse failures because extracted_content includes
+        intermediate page text that corrupts JSON parsing.
         """
-        texts: list[str] = []
         if hasattr(result, "final_result"):
             text = result.final_result()
             if text:
-                texts.append(text)
+                return text
         if hasattr(result, "extracted_content"):
             contents = result.extracted_content()
             if contents:
-                texts.extend(contents)
-        if texts:
-            return "\n".join(texts)
+                return "\n".join(contents)
         return str(result) if result else None
 
     def parse_json(self, raw: str | None):

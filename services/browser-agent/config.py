@@ -14,4 +14,4 @@ MAX_CONCURRENT_TASKS = int(os.getenv("MAX_CONCURRENT_TASKS", "3"))
 # Research pipeline settings
 DEFAULT_SEARCH_DELAY_SECONDS = int(os.getenv("DEFAULT_SEARCH_DELAY_SECONDS", "2"))
 MAX_DETAIL_PAGES = int(os.getenv("MAX_DETAIL_PAGES", "15"))
-MAX_SEARCH_PAGES = int(os.getenv("MAX_SEARCH_PAGES", "3"))
+MAX_SEARCH_PAGES = int(os.getenv("MAX_SEARCH_PAGES", "1"))

@@ -20,7 +20,10 @@ class ZillowSearchAgent(BaseResearchAgent):
     # Stage 1: Search results scraping (up to MAX_SEARCH_PAGES pages)
     # ------------------------------------------------------------------
     async def _stage_search(self, intent: dict) -> list[dict]:
-        location = ", ".join(intent.get("preferred_areas", ["Dallas, TX"]))
+        areas = intent.get("preferred_areas", ["Dallas, TX"])
+        # Use only the first area for the Zillow search — multi-city
+        # confuses Zillow's autocomplete and leads to wrong results.
+        location = areas[0] if areas else "Dallas, TX"
         price_min = intent.get("budget_min", 300000)
         price_max = intent.get("budget_max", 750000)
         beds_min = intent.get("beds_min", 3)
@@ -32,6 +35,7 @@ class ZillowSearchAgent(BaseResearchAgent):
             home_type_instruction = f"- Home type: {home_type}\n"
 
         all_listings: list[dict] = []
+        seen_urls: set[str] = set()  # dedup by listing_url
         browser = await self.ensure_browser()
 
         # Use a single Agent with add_new_task for pagination to keep the
@@ -42,10 +46,10 @@ class ZillowSearchAgent(BaseResearchAgent):
             self.log_event("search_page_start", {"page": page_num})
 
             if page_num == 1:
-                task = f"""First go to google.com and search for "zillow homes for sale {location}".
-Click on the first Zillow result link to go to Zillow's search page for {location}.
+                task = f"""Go to https://www.zillow.com/ and search for "{location}" in the search bar.
+Wait for autocomplete suggestions to appear, then click the suggestion that best matches "{location}".
 
-Once on Zillow, apply these filters:
+Once on the Zillow search results page for {location}, apply these filters:
 - Price: ${price_min:,} to ${price_max:,}
 - Beds: {beds_min}+
 - Baths: {baths_min}+
@@ -89,11 +93,24 @@ Return the results as a JSON array. Return ONLY the JSON array, no other text.""
                 result_text = self.extract_result(result)
                 listings = self.parse_json(result_text)
                 if isinstance(listings, list):
-                    all_listings.extend(listings)
+                    new_count = 0
+                    for item in listings:
+                        url = item.get("listing_url", "")
+                        if url and url in seen_urls:
+                            continue
+                        if url:
+                            seen_urls.add(url)
+                        all_listings.append(item)
+                        new_count += 1
                     self.log_event("search_page_done", {
                         "page": page_num,
                         "found": len(listings),
+                        "new": new_count,
                     })
+                    # If no new listings were found, no more pages to scrape
+                    if new_count == 0:
+                        self.log_event("search_pagination_exhausted", {"page": page_num})
+                        break
                 else:
                     self.log_event("search_page_parse_error", {
                         "page": page_num,
@@ -221,7 +238,8 @@ Return ONLY the JSON object, no other text."""
             await self.save_log()
             return []
 
-        # Stage 2: Pick top candidates and deep-dive
+        # Save properties directly from search results (fast path).
+        # Detail deep-dives are optional and very slow (~2min per property).
         candidates = self._rank_candidates(all_listings, intent)
         self.log_event("candidates_selected", {"count": len(candidates)})
 
@@ -229,78 +247,46 @@ Return ONLY the JSON object, no other text."""
 
         for i, listing in enumerate(candidates, 1):
             address = listing.get("address", "unknown")
-            self.log_event("detail_start", {
-                "index": i, "total": len(candidates), "address": address,
-            })
 
-            detail = await self._stage_detail(listing)
-            await asyncio.sleep(DEFAULT_SEARCH_DELAY_SECONDS)
+            # Parse city/state/zip from address string
+            parts = [p.strip() for p in address.split(",")]
+            city = parts[1] if len(parts) > 1 else None
+            state_zip = parts[2].strip().split() if len(parts) > 2 else []
+            state = state_zip[0] if state_zip else None
+            zip_code = state_zip[1] if len(state_zip) > 1 else None
 
-            if not detail:
-                continue
+            # Extract zillow_id from URL
+            url = listing.get("listing_url", "")
+            zpid_match = re.search(r"/(\d+)_zpid", url)
+            zillow_id = zpid_match.group(1) if zpid_match else None
 
-            # Extract listing agent info before saving property
-            listing_agent_id = None
-            agent_name = detail.pop("listing_agent_name", None)
-            agent_brokerage = detail.pop("listing_agent_brokerage", None)
-            agent_phone = detail.pop("listing_agent_phone", None)
-            agent_email = detail.pop("listing_agent_email", None)
-
-            if agent_name:
-                try:
-                    listing_agent_id = await self.save_listing_agent({
-                        "name": agent_name,
-                        "brokerage": agent_brokerage or "",
-                        "phone": agent_phone,
-                        "email": agent_email,
-                    })
-                    self.log_event("listing_agent_saved", {
-                        "name": agent_name, "id": listing_agent_id,
-                    })
-                except Exception as e:
-                    self.log_event("listing_agent_save_error", {"error": str(e)})
-
-            # Build property data
             property_data = {
-                "address": detail.get("address") or listing.get("address", "Unknown"),
-                "city": detail.get("city"),
-                "state": detail.get("state"),
-                "zip": detail.get("zip"),
-                "listing_price": detail.get("listing_price"),
-                "beds": detail.get("beds"),
-                "baths": detail.get("baths"),
-                "sqft": detail.get("sqft"),
-                "lot_sqft": detail.get("lot_sqft"),
-                "year_built": detail.get("year_built"),
-                "property_type": detail.get("property_type"),
-                "hoa_monthly": detail.get("hoa_monthly"),
-                "tax_annual": detail.get("tax_annual"),
-                "tax_assessed_value": detail.get("tax_assessed_value"),
-                "listing_description": detail.get("listing_description"),
-                "photos": detail.get("photos", []),
-                "amenities": detail.get("amenities", []),
-                "days_on_market": detail.get("days_on_market"),
-                "price_history": detail.get("price_history", []),
-                "zillow_url": detail.get("zillow_url"),
-                "zillow_id": detail.get("zillow_id"),
+                "address": address,
+                "city": city,
+                "state": state,
+                "zip": zip_code,
+                "listing_price": listing.get("price"),
+                "beds": listing.get("beds"),
+                "baths": listing.get("baths"),
+                "sqft": listing.get("sqft"),
+                "photos": [listing["thumbnail_url"]] if listing.get("thumbnail_url") else [],
+                "zillow_url": url,
+                "zillow_id": zillow_id,
                 "listing_status": "active",
             }
-
-            if listing_agent_id:
-                property_data["listing_agent_id"] = listing_agent_id
 
             try:
                 prop_id = await self.save_property(property_data)
                 saved_ids.append(prop_id)
                 self.log_event("property_saved", {
-                    "property_id": prop_id, "address": property_data["address"],
+                    "property_id": prop_id, "address": address,
                 })
 
                 if self.buyer_id:
                     await self.link_property_to_buyer(self.buyer_id, prop_id)
             except Exception as e:
                 self.log_event("property_save_error", {
-                    "error": str(e), "address": property_data["address"],
+                    "error": str(e), "address": address,
                 })
 
         # Complete

@@ -15,6 +15,7 @@ import {
   TrendingDown,
   Handshake,
   AlertCircle,
+  ClipboardList,
 } from "lucide-react";
 import type { Database } from "@/types/database";
 
@@ -33,6 +34,8 @@ const eventIcons: Record<string, typeof UserPlus> = {
   property_price_change: TrendingDown,
   deal_stage_changed: Handshake,
   deadline_approaching: AlertCircle,
+  buyer_updated: ClipboardList,
+  buyer_criteria_changed: ClipboardList,
 };
 
 export function ActivityFeed({ agentId }: { agentId: string }) {

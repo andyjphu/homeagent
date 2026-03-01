@@ -58,29 +58,39 @@ Amenities: ${JSON.stringify(property.amenities)}
 Description: ${property.listing_description ?? "N/A"}
 `;
 
-    const result = await llmJSON<{
-      match_score: number;
-      score_reasoning: string;
-      score_breakdown: any;
-    }>("property_scoring", PROPERTY_SCORING_PROMPT, context);
+    try {
+      const result = await llmJSON<{
+        match_score: number;
+        score_reasoning: string;
+        score_breakdown: any;
+      }>("property_scoring", PROPERTY_SCORING_PROMPT, context);
 
-    // Upsert score
-    const { data: score } = await supabase
-      .from("buyer_property_scores")
-      .upsert(
-        {
-          buyer_id: buyerId,
-          property_id: property.id,
-          match_score: result.match_score,
-          score_reasoning: result.score_reasoning,
-          score_breakdown: result.score_breakdown,
-        },
-        { onConflict: "buyer_id,property_id" }
-      )
-      .select()
-      .single();
+      if (typeof result.match_score !== "number") {
+        console.error(`Invalid score for property ${property.id}:`, result);
+        continue;
+      }
 
-    scores.push(score);
+      // Upsert score
+      const { data: score } = await supabase
+        .from("buyer_property_scores")
+        .upsert(
+          {
+            buyer_id: buyerId,
+            property_id: property.id,
+            match_score: result.match_score,
+            score_reasoning: result.score_reasoning ?? "",
+            score_breakdown: result.score_breakdown ?? {},
+          },
+          { onConflict: "buyer_id,property_id" }
+        )
+        .select()
+        .single();
+
+      scores.push(score);
+    } catch (err) {
+      console.error(`Failed to score property ${property.id}:`, err);
+      continue;
+    }
   }
 
   return NextResponse.json({ scores });

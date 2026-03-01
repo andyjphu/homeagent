@@ -3,6 +3,7 @@ from agents.zillow_search import ZillowSearchAgent
 from agents.school_search import SchoolAgent
 from agents.walkscore_search import WalkScoreAgent
 from agents.commute_search import CommuteAgent
+from agents.property_scorer import score_properties
 from db.supabase_client import supabase
 
 
@@ -74,87 +75,109 @@ class FullResearchPipeline(BaseResearchAgent):
         self.execution_log.extend(zillow_agent.execution_log)
 
         # ------------------------------------------------------------------
-        # Stage 3: Cross-reference enrichment for each property
+        # Stage 3: Cross-reference enrichment (skip when skip_enrichment=True)
         # ------------------------------------------------------------------
-        self.log_event("stage_crossref_start", {"property_count": len(property_ids)})
-
         enriched_count = 0
+        skip_enrichment = input_params.get("skip_enrichment", False)
 
-        for i, prop_id in enumerate(property_ids, 1):
-            # Fetch property data from DB
-            prop_result = supabase.table("properties").select("*").eq("id", prop_id).execute()
-            if not prop_result.data:
-                self.log_event("property_not_found", {"property_id": prop_id})
-                continue
+        if skip_enrichment:
+            self.log_event("stage_crossref_skipped", {"reason": "skip_enrichment flag"})
+        else:
+            self.log_event("stage_crossref_start", {"property_count": len(property_ids)})
 
-            prop = prop_result.data[0]
-            full_address = self._build_full_address(prop)
-            self.log_event("crossref_start", {
-                "index": i,
-                "total": len(property_ids),
-                "address": full_address,
-            })
+            for i, prop_id in enumerate(property_ids, 1):
+                prop_result = supabase.table("properties").select("*").eq("id", prop_id).execute()
+                if not prop_result.data:
+                    self.log_event("property_not_found", {"property_id": prop_id})
+                    continue
 
-            updates: dict = {}
+                prop = prop_result.data[0]
+                full_address = self._build_full_address(prop)
+                self.log_event("crossref_start", {
+                    "index": i,
+                    "total": len(property_ids),
+                    "address": full_address,
+                })
 
-            # School ratings
-            try:
-                school_agent = SchoolAgent(
-                    self.task_id, self.agent_id, self.buyer_id, browser=shared_browser,
-                )
-                school_data = await school_agent.run({"address": full_address})
-                if school_data:
-                    updates["school_ratings"] = school_data
-                self.execution_log.extend(school_agent.execution_log)
-            except Exception as e:
-                self.log_event("school_failed", {"address": full_address, "error": str(e)})
+                updates: dict = {}
 
-            # Walk Score / Transit Score
-            try:
-                walkscore_agent = WalkScoreAgent(
-                    self.task_id, self.agent_id, self.buyer_id, browser=shared_browser,
-                )
-                walkscore_data = await walkscore_agent.run({"address": full_address})
-                if walkscore_data:
-                    if walkscore_data.get("walk_score") is not None:
-                        updates["walk_score"] = walkscore_data["walk_score"]
-                    if walkscore_data.get("transit_score") is not None:
-                        updates["transit_score"] = walkscore_data["transit_score"]
-                self.execution_log.extend(walkscore_agent.execution_log)
-            except Exception as e:
-                self.log_event("walkscore_failed", {"address": full_address, "error": str(e)})
-
-            # Commute data (only if buyer has a workplace)
-            if workplace:
+                # School ratings
                 try:
-                    commute_agent = CommuteAgent(
+                    school_agent = SchoolAgent(
                         self.task_id, self.agent_id, self.buyer_id, browser=shared_browser,
                     )
-                    commute_data = await commute_agent.run({
-                        "address": full_address,
-                        "workplace": workplace,
-                    })
-                    if commute_data:
-                        updates["commute_data"] = commute_data
-                    self.execution_log.extend(commute_agent.execution_log)
+                    school_data = await school_agent.run({"address": full_address})
+                    if school_data:
+                        updates["school_ratings"] = school_data
+                    self.execution_log.extend(school_agent.execution_log)
                 except Exception as e:
-                    self.log_event("commute_failed", {"address": full_address, "error": str(e)})
+                    self.log_event("school_failed", {"address": full_address, "error": str(e)})
 
-            # Apply updates to property record
-            if updates:
+                # Walk Score / Transit Score
                 try:
-                    supabase.table("properties").update(updates).eq("id", prop_id).execute()
-                    enriched_count += 1
-                    self.log_event("property_enriched", {
-                        "property_id": prop_id,
-                        "fields_updated": list(updates.keys()),
-                    })
+                    walkscore_agent = WalkScoreAgent(
+                        self.task_id, self.agent_id, self.buyer_id, browser=shared_browser,
+                    )
+                    walkscore_data = await walkscore_agent.run({"address": full_address})
+                    if walkscore_data:
+                        if walkscore_data.get("walk_score") is not None:
+                            updates["walk_score"] = walkscore_data["walk_score"]
+                        if walkscore_data.get("transit_score") is not None:
+                            updates["transit_score"] = walkscore_data["transit_score"]
+                    self.execution_log.extend(walkscore_agent.execution_log)
                 except Exception as e:
-                    self.log_event("property_update_error", {
-                        "property_id": prop_id, "error": str(e),
-                    })
-            else:
-                self.log_event("property_no_enrichment", {"property_id": prop_id})
+                    self.log_event("walkscore_failed", {"address": full_address, "error": str(e)})
+
+                # Commute data (only if buyer has a workplace)
+                if workplace:
+                    try:
+                        commute_agent = CommuteAgent(
+                            self.task_id, self.agent_id, self.buyer_id, browser=shared_browser,
+                        )
+                        commute_data = await commute_agent.run({
+                            "address": full_address,
+                            "workplace": workplace,
+                        })
+                        if commute_data:
+                            updates["commute_data"] = commute_data
+                        self.execution_log.extend(commute_agent.execution_log)
+                    except Exception as e:
+                        self.log_event("commute_failed", {"address": full_address, "error": str(e)})
+
+                # Apply updates to property record
+                if updates:
+                    try:
+                        supabase.table("properties").update(updates).eq("id", prop_id).execute()
+                        enriched_count += 1
+                        self.log_event("property_enriched", {
+                            "property_id": prop_id,
+                            "fields_updated": list(updates.keys()),
+                        })
+                    except Exception as e:
+                        self.log_event("property_update_error", {
+                            "property_id": prop_id, "error": str(e),
+                        })
+                else:
+                    self.log_event("property_no_enrichment", {"property_id": prop_id})
+
+        # ------------------------------------------------------------------
+        # Stage 4: LLM property scoring
+        # ------------------------------------------------------------------
+        scored_count = 0
+        if self.buyer_id and property_ids:
+            self.log_event("stage_scoring_start", {"property_count": len(property_ids)})
+            try:
+                scored = score_properties(self.buyer_id, property_ids)
+                scored_count = len(scored)
+                self.log_event("stage_scoring_done", {
+                    "scored": scored_count,
+                    "scores": [
+                        {"property_id": s["property_id"], "match_score": s["match_score"]}
+                        for s in scored
+                    ],
+                })
+            except Exception as e:
+                self.log_event("stage_scoring_failed", {"error": str(e)})
 
         # ------------------------------------------------------------------
         # Complete
@@ -162,6 +185,7 @@ class FullResearchPipeline(BaseResearchAgent):
         self.log_event("pipeline_complete", {
             "property_ids": property_ids,
             "enriched": enriched_count,
+            "scored": scored_count,
         })
 
         await self.update_status(
@@ -169,20 +193,23 @@ class FullResearchPipeline(BaseResearchAgent):
             output_data={
                 "properties_found": len(property_ids),
                 "properties_enriched": enriched_count,
+                "properties_scored": scored_count,
                 "property_ids": property_ids,
             },
         )
 
         await self.create_activity(
             "research_completed",
-            f"Full research complete: {len(property_ids)} properties, {enriched_count} enriched",
+            f"Full research complete: {len(property_ids)} properties, {enriched_count} enriched, {scored_count} scored",
             description=(
                 f"Zillow search found {len(property_ids)} properties. "
-                f"Cross-referenced {enriched_count} with school ratings, walk scores, and commute data."
+                f"Cross-referenced {enriched_count} with school ratings, walk scores, and commute data. "
+                f"Scored {scored_count} properties against buyer preferences."
             ),
             metadata={
                 "property_count": len(property_ids),
                 "enriched_count": enriched_count,
+                "scored_count": scored_count,
                 "property_ids": property_ids,
             },
         )

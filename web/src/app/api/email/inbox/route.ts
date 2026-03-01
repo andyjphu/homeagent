@@ -28,7 +28,29 @@ export async function GET() {
     const after = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
     const emails = await fetchRecentEmails(auth, agent.email, 25, after);
 
-    return NextResponse.json({ emails });
+    // Fetch classifications for these emails from DB
+    const gmailIds = emails.map((e) => e.id);
+    const { data: classifications } = await admin
+      .from("communications")
+      .select("gmail_message_id, classification, ai_analysis, buyers(full_name)")
+      .eq("agent_id", agent.id)
+      .in("gmail_message_id", gmailIds);
+
+    const classMap = new Map(
+      (classifications || []).map((c: any) => [c.gmail_message_id, c])
+    );
+
+    const merged = emails.map((email) => {
+      const cls = classMap.get(email.id);
+      return {
+        ...email,
+        classification: cls?.classification || null,
+        aiAnalysis: cls?.ai_analysis || null,
+        buyerName: cls?.buyers?.full_name || null,
+      };
+    });
+
+    return NextResponse.json({ emails: merged });
   } catch (err) {
     console.error("[email-inbox] error:", err);
     return NextResponse.json({ error: "Failed to fetch emails" }, { status: 500 });

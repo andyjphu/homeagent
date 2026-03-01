@@ -22,6 +22,7 @@ export function ScanButton() {
         if (data.skipped) msg += ` (${data.skipped} already scanned)`;
         if (data.errors?.length) msg += ` — ${data.errors[0]}`;
         setResult(msg);
+        window.dispatchEvent(new Event("emails-updated"));
         router.refresh();
       } else {
         setResult(data.error || "Scan failed");

@@ -122,13 +122,14 @@ function LeadCard({ lead }: { lead: any }) {
               {lead.email && <span>{lead.email}</span>}
               {lead.phone && <span>{lead.phone}</span>}
             </div>
-            {extractedInfo.budget_max && (
+            {(extractedInfo.budget_max || extractedInfo.beds || extractedInfo.areas?.length > 0 || extractedInfo.timeline) && (
               <p className="text-sm text-muted-foreground">
-                Budget: ${extractedInfo.budget_min?.toLocaleString() ?? "?"} -{" "}
-                ${extractedInfo.budget_max?.toLocaleString()}
+                {extractedInfo.budget_max &&
+                  `$${extractedInfo.budget_min?.toLocaleString() ?? "?"} - $${extractedInfo.budget_max?.toLocaleString()}`}
                 {extractedInfo.beds && ` · ${extractedInfo.beds}+ beds`}
                 {extractedInfo.areas?.length > 0 &&
                   ` · ${extractedInfo.areas.join(", ")}`}
+                {extractedInfo.timeline && ` · ${extractedInfo.timeline}`}
               </p>
             )}
             {lead.raw_source_content && (

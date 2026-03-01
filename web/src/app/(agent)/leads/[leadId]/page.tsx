@@ -62,14 +62,19 @@ export default function LeadDetailPage() {
         intent_profile: {
           budget_min: extractedInfo.budget_min,
           budget_max: extractedInfo.budget_max,
+          estimated_income: extractedInfo.estimated_income,
           beds_min: extractedInfo.beds,
           baths_min: extractedInfo.baths,
+          sqft_min: extractedInfo.sqft_min,
           preferred_areas: extractedInfo.areas || [],
           must_have_amenities: extractedInfo.amenities || [],
           timeline: extractedInfo.timeline,
           household_size: extractedInfo.household_size,
+          max_commute_minutes: extractedInfo.max_commute_minutes,
+          school_priority: extractedInfo.school_priority,
+          hoa_tolerance: extractedInfo.hoa_tolerance,
           priorities_ranked: extractedInfo.priorities || [],
-          concerns: [],
+          concerns: extractedInfo.concerns || [],
         },
       })
       .select()
@@ -209,7 +214,7 @@ export default function LeadDetailPage() {
           </div>
           <div>
             <Label className="text-xs text-muted-foreground">Phone</Label>
-            <p className="text-sm">{lead.phone || "Not provided"}</p>
+            <p className="text-sm">{lead.phone || extractedInfo.phone || "Not provided"}</p>
           </div>
         </CardContent>
       </Card>
@@ -262,6 +267,12 @@ export default function LeadDetailPage() {
                   </p>
                 </div>
               )}
+              {extractedInfo.estimated_income && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Est. Income</Label>
+                  <p>${extractedInfo.estimated_income?.toLocaleString()}/yr</p>
+                </div>
+              )}
               {extractedInfo.beds && (
                 <div>
                   <Label className="text-xs text-muted-foreground">Beds</Label>
@@ -272,6 +283,12 @@ export default function LeadDetailPage() {
                 <div>
                   <Label className="text-xs text-muted-foreground">Baths</Label>
                   <p>{extractedInfo.baths}+</p>
+                </div>
+              )}
+              {extractedInfo.sqft_min && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Min Sqft</Label>
+                  <p>{extractedInfo.sqft_min?.toLocaleString()}</p>
                 </div>
               )}
               {extractedInfo.areas?.length > 0 && (
@@ -288,24 +305,62 @@ export default function LeadDetailPage() {
               )}
               {extractedInfo.household_size && (
                 <div>
-                  <Label className="text-xs text-muted-foreground">
-                    Household Size
-                  </Label>
+                  <Label className="text-xs text-muted-foreground">Household Size</Label>
                   <p>{extractedInfo.household_size}</p>
+                </div>
+              )}
+              {extractedInfo.max_commute_minutes && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Max Commute</Label>
+                  <p>{extractedInfo.max_commute_minutes} min</p>
+                </div>
+              )}
+              {extractedInfo.school_priority && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">School Priority</Label>
+                  <p className="capitalize">{extractedInfo.school_priority}</p>
+                </div>
+              )}
+              {extractedInfo.hoa_tolerance && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">HOA Tolerance</Label>
+                  <p className="capitalize">{extractedInfo.hoa_tolerance}</p>
+                </div>
+              )}
+              {extractedInfo.referral_source && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Referral Source</Label>
+                  <p>{extractedInfo.referral_source}</p>
                 </div>
               )}
               {extractedInfo.priorities?.length > 0 && (
                 <div className="col-span-2">
                   <Label className="text-xs text-muted-foreground">Priorities</Label>
-                  <p>{extractedInfo.priorities.join(", ")}</p>
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {extractedInfo.priorities.map((p: string) => (
+                      <Badge key={p} variant="secondary">{p}</Badge>
+                    ))}
+                  </div>
                 </div>
               )}
-              {extractedInfo.referral_source && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">
-                    Referral Source
-                  </Label>
-                  <p>{extractedInfo.referral_source}</p>
+              {extractedInfo.amenities?.length > 0 && (
+                <div className="col-span-2">
+                  <Label className="text-xs text-muted-foreground">Desired Amenities</Label>
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {extractedInfo.amenities.map((a: string) => (
+                      <Badge key={a} variant="outline">{a}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {extractedInfo.concerns?.length > 0 && (
+                <div className="col-span-2">
+                  <Label className="text-xs text-muted-foreground">Concerns</Label>
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {extractedInfo.concerns.map((c: string) => (
+                      <Badge key={c} variant="destructive">{c}</Badge>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

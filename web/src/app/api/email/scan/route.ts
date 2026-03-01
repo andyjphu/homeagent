@@ -169,6 +169,7 @@ export async function POST(request: Request) {
               confidence: classification.confidence,
               name: extractedInfo.name || senderName,
               email: senderEmail,
+              phone: extractedInfo.phone || null,
               raw_source_content: email.body.slice(0, 5000),
               extracted_info: extractedInfo,
               source_communication_id: comm.id,

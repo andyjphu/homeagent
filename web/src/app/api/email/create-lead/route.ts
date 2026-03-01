@@ -63,6 +63,7 @@ export async function POST(request: Request) {
     confidence: comm.classification === "new_lead" ? "high" : "medium",
     name: extractedInfo.name || senderName,
     email: senderEmail,
+    phone: extractedInfo.phone || null,
     raw_source_content: (comm.raw_content || "").slice(0, 5000),
     extracted_info: extractedInfo,
     source_communication_id: comm.id,

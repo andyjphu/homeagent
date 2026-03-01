@@ -15,6 +15,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [confirmEmail, setConfirmEmail] = useState(false);
   const router = useRouter();
 
   async function handleSignup(e: React.FormEvent) {
@@ -55,9 +56,36 @@ export default function SignupPage() {
         return;
       }
 
+      // If email confirmation is required, show message instead of redirecting
+      if (data.user.identities?.length === 0 || !data.session) {
+        setConfirmEmail(true);
+        setLoading(false);
+        return;
+      }
+
       router.push("/dashboard");
       router.refresh();
     }
+  }
+
+  if (confirmEmail) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold">Check your email</CardTitle>
+            <CardDescription>
+              We sent a confirmation link to <strong>{email}</strong>. Click the link to activate your account, then come back and sign in.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/login">
+              <Button className="w-full">Go to Sign In</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (

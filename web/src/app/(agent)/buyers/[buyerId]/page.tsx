@@ -7,8 +7,6 @@ import {
   ArrowLeft,
   ExternalLink,
   Search,
-  Send,
-  Copy,
   Building2,
 } from "lucide-react";
 import Link from "next/link";
@@ -16,6 +14,7 @@ import { notFound } from "next/navigation";
 import { ResearchTrigger } from "@/components/buyers/research-trigger";
 import { SendToBuyerToggle } from "@/components/buyers/send-to-buyer-toggle";
 import { EmailSummaryButton } from "@/components/buyers/email-summary-button";
+import { CopyLinkButton } from "@/components/buyers/copy-link-button";
 
 export default async function BuyerDetailPage({
   params,
@@ -190,13 +189,7 @@ export default async function BuyerDetailPage({
                 <code className="text-xs bg-muted px-2 py-1 rounded flex-1 truncate">
                   {dashboardUrl}
                 </code>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {}}
-                >
-                  <Copy className="h-3 w-3" />
-                </Button>
+                <CopyLinkButton text={dashboardUrl} />
               </div>
               <p className="text-xs text-muted-foreground mt-2">
                 Share this link with {buyer.full_name} so they can view properties and provide feedback.

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -11,15 +12,18 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error && data.user) {
+      // Use admin client to bypass RLS for agent record creation
+      const adminSupabase = createAdminClient() as any;
+
       // Check if agent record exists, create if not
-      const { data: agent } = await supabase
+      const { data: agent } = await adminSupabase
         .from("agents")
         .select("id")
         .eq("user_id", data.user.id)
         .single();
 
       if (!agent) {
-        await supabase.from("agents").insert({
+        const { error: insertError } = await adminSupabase.from("agents").insert({
           user_id: data.user.id,
           email: data.user.email!,
           full_name:
@@ -27,9 +31,23 @@ export async function GET(request: Request) {
             data.user.email?.split("@")[0] ||
             "Agent",
         });
+
+        if (insertError) {
+          console.error("Failed to create agent record:", insertError.message);
+          return NextResponse.redirect(`${origin}/login?error=auth`);
+        }
       }
 
-      return NextResponse.redirect(`${origin}${next}`);
+      const forwardedHost = request.headers.get("x-forwarded-host");
+      const isLocalEnv = process.env.NODE_ENV === "development";
+
+      if (isLocalEnv) {
+        return NextResponse.redirect(`${origin}${next}`);
+      } else if (forwardedHost) {
+        return NextResponse.redirect(`https://${forwardedHost}${next}`);
+      } else {
+        return NextResponse.redirect(`${origin}${next}`);
+      }
     }
   }
 

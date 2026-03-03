@@ -15,13 +15,6 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const searchParams = useSearchParams();
-
-  useEffect(() => {
-    if (searchParams.get("error") === "auth") {
-      setError("Authentication failed. Please try again.");
-    }
-  }, [searchParams]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();

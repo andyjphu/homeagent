@@ -80,35 +80,15 @@ export default async function LeadsPage() {
         </TabsContent>
 
         <TabsContent value="confirmed" className="space-y-3 mt-4">
-          {confirmedLeads.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <p className="text-muted-foreground">
-                  No confirmed leads yet. Review draft leads to confirm them.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            confirmedLeads.map((lead) => (
-              <LeadCard key={lead.id} lead={lead} />
-            ))
-          )}
+          {confirmedLeads.map((lead) => (
+            <LeadCard key={lead.id} lead={lead} />
+          ))}
         </TabsContent>
 
         <TabsContent value="dismissed" className="space-y-3 mt-4">
-          {dismissedLeads.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <p className="text-muted-foreground">
-                  No dismissed leads.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            dismissedLeads.map((lead) => (
-              <LeadCard key={lead.id} lead={lead} />
-            ))
-          )}
+          {dismissedLeads.map((lead) => (
+            <LeadCard key={lead.id} lead={lead} />
+          ))}
         </TabsContent>
       </Tabs>
     </div>

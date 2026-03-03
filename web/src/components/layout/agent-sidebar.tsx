@@ -8,6 +8,7 @@ import {
   UserPlus,
   Users,
   Building2,
+  Briefcase,
   Mail,
   Phone,
   Settings,
@@ -15,21 +16,34 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/leads", label: "Leads", icon: UserPlus },
-  { href: "/buyers", label: "Buyers", icon: Users },
+  { href: "/buyers", label: "Clients", icon: Users },
+  { href: "/deals", label: "Deals", icon: Briefcase },
   { href: "/properties", label: "Properties", icon: Building2 },
   { href: "/email", label: "Email", icon: Mail },
   { href: "/calls", label: "Calls", icon: Phone },
 ];
 
-export function AgentSidebar({ agentName }: { agentName: string }) {
+interface AgentSidebarProps {
+  agentName: string;
+  agentEmail: string;
+}
+
+export function AgentSidebar({ agentName, agentEmail }: AgentSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+
+  const initials = agentName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   async function handleSignOut() {
     const supabase = createClient() as any;
@@ -39,7 +53,7 @@ export function AgentSidebar({ agentName }: { agentName: string }) {
   }
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r bg-card">
+    <aside className="hidden md:flex h-screen w-64 flex-col border-r bg-card">
       <div className="flex items-center gap-2 p-6">
         <Building2 className="h-6 w-6 text-primary" />
         <span className="text-lg font-bold">HomeAgent</span>
@@ -90,8 +104,14 @@ export function AgentSidebar({ agentName }: { agentName: string }) {
         </button>
       </div>
       <Separator />
-      <div className="p-4">
-        <p className="text-xs text-muted-foreground truncate">{agentName}</p>
+      <div className="p-4 flex items-center gap-3">
+        <Avatar size="sm">
+          <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+        </Avatar>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium truncate">{agentName}</p>
+          <p className="text-xs text-muted-foreground truncate">{agentEmail}</p>
+        </div>
       </div>
     </aside>
   );

@@ -25,8 +25,34 @@ const FAST_TASKS: LLMTask[] = [
   "temperature_assessment",
 ];
 
+function hasCerebrasKey(): boolean {
+  return !!process.env.CEREBRAS_API_KEY;
+}
+
+function hasGeminiKey(): boolean {
+  return !!process.env.GEMINI_API_KEY;
+}
+
+/**
+ * Check if any LLM provider is available for a given task.
+ * Fast tasks prefer Cerebras, complex tasks prefer Gemini — but either can fall back to the other.
+ */
+export function isLLMAvailable(task?: LLMTask): boolean {
+  if (!task) return hasCerebrasKey() || hasGeminiKey();
+  if (FAST_TASKS.includes(task)) return hasCerebrasKey() || hasGeminiKey();
+  return hasGeminiKey() || hasCerebrasKey();
+}
+
 function getProvider(task: LLMTask): "cerebras" | "gemini" {
-  return FAST_TASKS.includes(task) ? "cerebras" : "gemini";
+  const preferCerebras = FAST_TASKS.includes(task);
+  if (preferCerebras) {
+    if (hasCerebrasKey()) return "cerebras";
+    if (hasGeminiKey()) return "gemini";
+  } else {
+    if (hasGeminiKey()) return "gemini";
+    if (hasCerebrasKey()) return "cerebras";
+  }
+  throw new Error("No LLM API keys configured. Set CEREBRAS_API_KEY or GEMINI_API_KEY.");
 }
 
 export async function llmComplete(

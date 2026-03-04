@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createActivityEntry } from "@/lib/supabase/activity";
 
 export async function POST(
   request: Request,
@@ -48,15 +49,14 @@ export async function POST(
   // Notify agent via activity feed when buyer favorites a property
   if (isFavorited && updated) {
     const address = (updated.properties as any)?.address ?? "a property";
-    await supabase.from("activity_feed").insert({
-      agent_id: buyer.agent_id,
-      event_type: "property_favorited",
-      buyer_id: buyer.id,
-      property_id: updated.property_id,
-      title: `${buyer.full_name} favorited ${address}`,
-      description: "Buyer marked this property as a favorite on their dashboard.",
-      is_action_required: false,
-    });
+    await createActivityEntry(
+      buyer.agent_id,
+      "property_favorited",
+      `${buyer.full_name} favorited ${address}`,
+      "Buyer marked this property as a favorite on their dashboard.",
+      undefined,
+      { buyerId: buyer.id, propertyId: updated.property_id }
+    );
   }
 
   // Update buyer last activity

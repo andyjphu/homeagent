@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { createActivityEntry } from "@/lib/supabase/activity";
 
 export async function POST(
   request: Request,
@@ -95,14 +96,14 @@ export async function POST(
     .eq("id", lead.id);
 
   // Log activity
-  await supabase.from("activity_feed").insert({
-    agent_id: agent.id,
-    event_type: "lead_confirmed",
-    buyer_id: buyer.id,
-    title: `Lead confirmed: ${lead.name || "Unknown"}`,
-    description: `Created buyer profile from ${lead.source} lead`,
-    metadata: { lead_id: lead.id },
-  });
+  await createActivityEntry(
+    agent.id,
+    "lead_confirmed",
+    `Lead confirmed: ${lead.name || "Unknown"}`,
+    `Created buyer profile from ${lead.source} lead`,
+    { lead_id: lead.id },
+    { buyerId: buyer.id }
+  );
 
   return NextResponse.json({ buyer });
 }

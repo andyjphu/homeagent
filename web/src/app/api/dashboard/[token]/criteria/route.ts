@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { llmJSON } from "@/lib/llm/router";
+import { createActivityEntry } from "@/lib/supabase/activity";
 
 export async function PATCH(
   request: Request,
@@ -60,14 +61,14 @@ export async function PATCH(
 
   // Always notify agent when criteria change is significant
   if (isSignificant) {
-    await supabase.from("activity_feed").insert({
-      agent_id: buyer.agent_id,
-      event_type: "buyer_criteria_changed",
-      buyer_id: buyer.id,
-      title: `${buyer.full_name} updated search criteria`,
-      description: reason,
-      is_action_required: true,
-    });
+    await createActivityEntry(
+      buyer.agent_id,
+      "buyer_criteria_changed",
+      `${buyer.full_name} updated search criteria`,
+      reason,
+      undefined,
+      { buyerId: buyer.id, isActionRequired: true }
+    );
   }
 
   return NextResponse.json({

@@ -56,12 +56,21 @@ export async function GET() {
     });
 
     return NextResponse.json({ emails: merged });
-  } catch (err: any) {
-    const msg = err?.response?.data?.error || err?.message || "Unknown error";
+  } catch (err) {
+    const errObj = err as { response?: { data?: { error?: string } }; message?: string };
+    const msg = errObj?.response?.data?.error || errObj?.message || "Unknown error";
     console.error("[email-inbox] error:", msg, err);
 
+    // Gmail not connected
+    if (msg.includes("Gmail not connected")) {
+      return NextResponse.json(
+        { error: "Gmail is not connected. Please connect Gmail in Settings." },
+        { status: 400 }
+      );
+    }
+
     // If token is invalid, tell the user to reconnect
-    if (msg === "invalid_grant" || msg === "invalid_request") {
+    if (msg === "invalid_grant" || msg === "invalid_request" || msg.includes("invalid_grant")) {
       return NextResponse.json(
         { error: "Gmail session expired. Please reconnect Gmail in Settings." },
         { status: 401 }

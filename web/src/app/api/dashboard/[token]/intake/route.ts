@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createActivityEntry } from "@/lib/supabase/activity";
 
 export async function POST(
   request: Request,
@@ -57,15 +58,14 @@ export async function POST(
     .eq("id", buyer.id);
 
   // Insert activity feed entry
-  await supabase.from("activity_feed").insert({
-    agent_id: buyer.agent_id,
-    event_type: "buyer_updated",
-    buyer_id: buyer.id,
-    title: `${buyer.full_name} completed intake questionnaire`,
-    description:
-      "Buyer filled out their home search preferences. Review their updated profile to start curating properties.",
-    is_action_required: true,
-  });
+  await createActivityEntry(
+    buyer.agent_id,
+    "buyer_updated",
+    `${buyer.full_name} completed intake questionnaire`,
+    "Buyer filled out their home search preferences. Review their updated profile to start curating properties.",
+    undefined,
+    { buyerId: buyer.id, isActionRequired: true }
+  );
 
   return NextResponse.json({ success: true });
 }

@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createActivityEntry } from "@/lib/supabase/activity";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -118,14 +119,14 @@ export default async function BuyerDashboardPage({
     })
     .eq("id", buyer.id);
 
-  await supabase.from("activity_feed").insert({
-    agent_id: buyer.agent_id,
-    event_type: "dashboard_viewed",
-    buyer_id: buyer.id,
-    title: `${buyer.full_name} viewed their dashboard`,
-    description: `Visit #${(buyer.dashboard_visit_count ?? 0) + 1}`,
-    is_action_required: false,
-  });
+  await createActivityEntry(
+    buyer.agent_id,
+    "dashboard_viewed",
+    `${buyer.full_name} viewed their dashboard`,
+    `Visit #${(buyer.dashboard_visit_count ?? 0) + 1}`,
+    undefined,
+    { buyerId: buyer.id }
+  );
 
   // Fetch deals at negotiating stage or later — buyers see progress once things get serious
   const VISIBLE_DEAL_STAGES = [

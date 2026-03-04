@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { createActivityEntry } from "@/lib/supabase/activity";
 
 export async function POST(
   request: Request,
@@ -48,12 +49,13 @@ export async function POST(
     .eq("id", lead.id);
 
   // Log activity
-  await supabase.from("activity_feed").insert({
-    agent_id: agent.id,
-    event_type: "lead_dismissed",
-    title: `Lead dismissed: ${lead.name || "Unknown"}`,
-    metadata: { lead_id: lead.id },
-  });
+  await createActivityEntry(
+    agent.id,
+    "lead_dismissed",
+    `Lead dismissed: ${lead.name || "Unknown"}`,
+    undefined,
+    { lead_id: lead.id }
+  );
 
   return NextResponse.json({ success: true });
 }

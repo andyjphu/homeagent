@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { runTask } from "@/lib/browser-use/client";
 import { buildZillowSearchPrompt } from "@/lib/browser-use/prompts";
 import { logEvent, updateTaskStatus } from "@/lib/browser-use/save-results";
+import { createActivityEntry } from "@/lib/supabase/activity";
 
 export async function POST(request: Request) {
   const supabase = (await createClient()) as any;
@@ -35,14 +36,14 @@ export async function POST(request: Request) {
   }
 
   // Add activity feed entry
-  await supabase.from("activity_feed").insert({
-    agent_id: agentId,
-    event_type: "research_started",
-    buyer_id: buyerId,
-    task_id: task.id,
-    title: "Research started",
-    description: "Property research pipeline triggered",
-  });
+  await createActivityEntry(
+    agentId,
+    "research_started",
+    "Research started",
+    "Property research pipeline triggered",
+    undefined,
+    { buyerId, taskId: task.id }
+  );
 
   // Start Zillow search directly via Browser Use Cloud
   let liveUrl: string | null = null;

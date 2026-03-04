@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createActivityEntry } from "@/lib/supabase/activity";
 
 export async function POST(
   request: Request,
@@ -76,15 +77,14 @@ export async function POST(
   const address = property?.address ?? "a property";
 
   // Notify agent via activity feed
-  await supabase.from("activity_feed").insert({
-    agent_id: buyer.agent_id,
-    event_type: "comment_added",
-    buyer_id: buyer.id,
-    property_id: propertyId,
-    title: `${buyer.full_name} commented on ${address}`,
-    description: content.trim().slice(0, 200),
-    is_action_required: true,
-  });
+  await createActivityEntry(
+    buyer.agent_id,
+    "comment_added",
+    `${buyer.full_name} commented on ${address}`,
+    content.trim().slice(0, 200),
+    undefined,
+    { buyerId: buyer.id, propertyId, isActionRequired: true }
+  );
 
   // Update buyer last activity
   await supabase

@@ -6,14 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { SlidersHorizontal, Save, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export function FilterPanel({
-  buyerId,
   dashboardToken,
   intentProfile,
 }: {
-  buyerId: string;
   dashboardToken: string;
   intentProfile: any;
 }) {
@@ -28,32 +28,47 @@ export function FilterPanel({
     max_commute_minutes: intentProfile.max_commute_minutes ?? "",
     school_rating_min: intentProfile.school_rating_min ?? "",
     hoa_tolerance: intentProfile.hoa_tolerance ?? "",
+    preferred_areas: Array.isArray(intentProfile.preferred_areas)
+      ? intentProfile.preferred_areas.join(", ")
+      : "",
   });
   const router = useRouter();
 
   async function handleSave() {
     setSaving(true);
 
+    const numericFields = Object.fromEntries(
+      Object.entries(filters)
+        .filter(([k]) => k !== "preferred_areas")
+        .map(([k, v]) => [k, v === "" ? undefined : Number(v)])
+    );
+    const areas = filters.preferred_areas
+      .split(",")
+      .map((s: string) => s.trim())
+      .filter(Boolean);
     const updatedProfile = {
       ...intentProfile,
-      ...Object.fromEntries(
-        Object.entries(filters).map(([k, v]) => [
-          k,
-          v === "" ? undefined : Number(v),
-        ])
-      ),
+      ...numericFields,
+      preferred_areas: areas.length > 0 ? areas : undefined,
     };
 
-    await fetch(`/api/dashboard/${dashboardToken}/criteria`, {
+    const res = await fetch(`/api/dashboard/${dashboardToken}/criteria`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        buyerId,
         intentProfile: updatedProfile,
       }),
     });
 
     setSaving(false);
+
+    if (res.ok) {
+      toast.success("Search criteria saved. Your agent has been notified.");
+      setExpanded(false);
+    } else {
+      toast.error("Failed to save criteria. Please try again.");
+    }
+
     router.refresh();
   }
 
@@ -83,8 +98,22 @@ export function FilterPanel({
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <CardContent className="space-y-4">
+        <div className="space-y-1">
+          <Label className="text-xs">Preferred Areas / Neighborhoods</Label>
+          <Textarea
+            value={filters.preferred_areas}
+            onChange={(e) =>
+              setFilters({ ...filters, preferred_areas: e.target.value })
+            }
+            placeholder="e.g., Downtown Austin, Cedar Park, 78704"
+            rows={2}
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Separate multiple areas with commas
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           <div className="space-y-1">
             <Label className="text-xs">Min Budget</Label>
             <Input
@@ -186,7 +215,7 @@ export function FilterPanel({
           ) : (
             <Save className="h-4 w-4 mr-2" />
           )}
-          {saving ? "Saving..." : "Save & Update Search"}
+          {saving ? "Saving..." : "Save Preferences"}
         </Button>
       </CardContent>
     </Card>

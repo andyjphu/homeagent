@@ -87,7 +87,6 @@ async function PropertySection({
     <PropertyList
       scores={scores}
       commentsByProperty={commentsByProperty}
-      buyerId={buyerId}
       dashboardToken={dashboardToken}
     />
   );
@@ -110,7 +109,7 @@ export default async function BuyerDashboardPage({
 
   if (!buyer) notFound();
 
-  // Update visit count
+  // Update visit count and log dashboard view for agent intelligence
   await supabase
     .from("buyers")
     .update({
@@ -119,12 +118,29 @@ export default async function BuyerDashboardPage({
     })
     .eq("id", buyer.id);
 
-  // Fetch active deals
+  await supabase.from("activity_feed").insert({
+    agent_id: buyer.agent_id,
+    event_type: "dashboard_viewed",
+    buyer_id: buyer.id,
+    title: `${buyer.full_name} viewed their dashboard`,
+    description: `Visit #${(buyer.dashboard_visit_count ?? 0) + 1}`,
+    is_action_required: false,
+  });
+
+  // Fetch deals at negotiating stage or later — buyers see progress once things get serious
+  const VISIBLE_DEAL_STAGES = [
+    "negotiating",
+    "under_contract",
+    "inspection",
+    "appraisal",
+    "closing",
+    "closed",
+  ];
   const { data: deals } = await supabase
     .from("deals")
     .select("*, properties(*)")
     .eq("buyer_id", buyer.id)
-    .not("stage", "in", '("closed","dead")');
+    .in("stage", VISIBLE_DEAL_STAGES);
 
   const intent = (buyer.intent_profile || {}) as any;
   const agentName = (buyer.agents as any)?.full_name;
@@ -177,7 +193,7 @@ export default async function BuyerDashboardPage({
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-2xl mx-auto px-4 py-6 space-y-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
         {/* Deal timeline */}
         {deals && deals.length > 0 && <DealTimeline deal={deals[0]} />}
 
@@ -203,7 +219,6 @@ export default async function BuyerDashboardPage({
 
         {/* Filter panel */}
         <FilterPanel
-          buyerId={buyer.id}
           dashboardToken={dashboardToken}
           intentProfile={intent}
         />

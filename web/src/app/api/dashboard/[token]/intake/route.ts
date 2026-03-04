@@ -21,6 +21,14 @@ export async function POST(
 
   const { intentProfile } = await request.json();
 
+  if (!intentProfile || typeof intentProfile !== "object") {
+    return NextResponse.json({ error: "intentProfile object required" }, { status: 400 });
+  }
+
+  if (JSON.stringify(intentProfile).length > 10_000) {
+    return NextResponse.json({ error: "Payload too large" }, { status: 400 });
+  }
+
   // Merge: only override fields the buyer actually filled in
   const existingProfile = (buyer.intent_profile || {}) as Record<string, unknown>;
   const merged: Record<string, unknown> = { ...existingProfile };

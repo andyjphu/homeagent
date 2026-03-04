@@ -8,10 +8,10 @@ export async function POST(
   const { token } = await params;
   const supabase = createAdminClient() as any;
 
-  // Validate token
+  // Validate token — fetch agent_id for activity feed
   const { data: buyer } = await supabase
     .from("buyers")
-    .select("id")
+    .select("id, agent_id, full_name")
     .eq("dashboard_token", token)
     .single();
 
@@ -21,8 +21,35 @@ export async function POST(
 
   const { propertyId, content } = await request.json();
 
-  if (!content?.trim()) {
+  if (!propertyId) {
+    return NextResponse.json({ error: "propertyId required" }, { status: 400 });
+  }
+
+  if (!content?.trim() || typeof content !== "string") {
     return NextResponse.json({ error: "Content required" }, { status: 400 });
+  }
+
+  if (content.trim().length > 2000) {
+    return NextResponse.json(
+      { error: "Comment must be under 2,000 characters" },
+      { status: 400 }
+    );
+  }
+
+  // Verify property was actually sent to this buyer
+  const { data: scoreRecord } = await supabase
+    .from("buyer_property_scores")
+    .select("id")
+    .eq("buyer_id", buyer.id)
+    .eq("property_id", propertyId)
+    .eq("is_sent_to_buyer", true)
+    .single();
+
+  if (!scoreRecord) {
+    return NextResponse.json(
+      { error: "Property not found in your shortlist" },
+      { status: 403 }
+    );
   }
 
   const { data: comment, error } = await supabase
@@ -38,6 +65,32 @@ export async function POST(
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Fetch property address for a useful activity title
+  const { data: property } = await supabase
+    .from("properties")
+    .select("address")
+    .eq("id", propertyId)
+    .single();
+
+  const address = property?.address ?? "a property";
+
+  // Notify agent via activity feed
+  await supabase.from("activity_feed").insert({
+    agent_id: buyer.agent_id,
+    event_type: "comment_added",
+    buyer_id: buyer.id,
+    property_id: propertyId,
+    title: `${buyer.full_name} commented on ${address}`,
+    description: content.trim().slice(0, 200),
+    is_action_required: true,
+  });
+
+  // Update buyer last activity
+  await supabase
+    .from("buyers")
+    .update({ last_activity_at: new Date().toISOString() })
+    .eq("id", buyer.id);
 
   return NextResponse.json({ comment });
 }

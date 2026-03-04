@@ -30,13 +30,20 @@ export async function GET(
 
   const analysis = (comm.ai_analysis || {}) as any;
 
+  const resolvedStatus = comm.is_processed
+    ? "complete"
+    : analysis.status === "failed"
+      ? "failed"
+      : analysis.status === "awaiting_manual_transcript"
+        ? "awaiting_transcript"
+        : analysis.status === "processed"
+          ? "complete"
+          : "processing";
+
   return NextResponse.json({
     id: comm.id,
-    status: comm.is_processed
-      ? "complete"
-      : analysis.status === "failed"
-        ? "failed"
-        : "processing",
+    status: resolvedStatus,
+    message: analysis.message || null,
     has_transcript: !!comm.raw_content,
     has_analysis: comm.is_processed,
     recording_url: comm.recording_url,

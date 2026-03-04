@@ -1,16 +1,23 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { llmJSON } from "@/lib/llm/router";
+import { llmJSON, isLLMAvailable } from "@/lib/llm/router";
 import { PROPERTY_SCORING_PROMPT } from "@/lib/llm/prompts/property-scoring";
 
 export async function POST(request: Request) {
-  const supabase = await createClient() as any;
+  const supabase = (await createClient()) as any;
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!isLLMAvailable("property_scoring")) {
+    return NextResponse.json(
+      { error: "No LLM API keys configured. Scoring is unavailable." },
+      { status: 503 }
+    );
   }
 
   const { buyerId, propertyIds } = await request.json();
@@ -26,6 +33,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Buyer not found" }, { status: 404 });
   }
 
+  if (
+    !buyer.intent_profile ||
+    Object.keys(buyer.intent_profile).length === 0
+  ) {
+    return NextResponse.json(
+      { error: "Buyer has no intake profile. Scoring requires buyer preferences." },
+      { status: 400 }
+    );
+  }
+
   // Fetch properties
   const { data: properties } = await supabase
     .from("properties")
@@ -33,7 +50,10 @@ export async function POST(request: Request) {
     .in("id", propertyIds);
 
   if (!properties || properties.length === 0) {
-    return NextResponse.json({ error: "No properties found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "No properties found" },
+      { status: 404 }
+    );
   }
 
   const scores: any[] = [];
@@ -70,6 +90,12 @@ Description: ${property.listing_description ?? "N/A"}
         continue;
       }
 
+      // Mark as AI-sourced in breakdown
+      const breakdown = {
+        ...(result.score_breakdown ?? {}),
+        source: "ai",
+      };
+
       // Upsert score
       const { data: score } = await supabase
         .from("buyer_property_scores")
@@ -79,7 +105,7 @@ Description: ${property.listing_description ?? "N/A"}
             property_id: property.id,
             match_score: result.match_score,
             score_reasoning: result.score_reasoning ?? "",
-            score_breakdown: result.score_breakdown ?? {},
+            score_breakdown: breakdown,
           },
           { onConflict: "buyer_id,property_id" }
         )

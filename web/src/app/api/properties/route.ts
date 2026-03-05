@@ -38,6 +38,8 @@ export async function POST(request: Request) {
     propertyType,
     listingDescription,
     listingUrl,
+    photos,
+    agentNotes,
   } = body;
 
   if (!address) {
@@ -70,6 +72,7 @@ export async function POST(request: Request) {
       property_type: propertyType || null,
       listing_description: listingDescription || null,
       zillow_url: listingUrl || null,
+      photos: photos && photos.length > 0 ? photos : [],
       listing_status: "active",
     })
     .select()
@@ -79,11 +82,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: propError.message }, { status: 500 });
   }
 
-  // Link to each buyer
+  // Link to each buyer with optional agent notes
   const scoreInserts = buyerIds.map((buyerId: string) => ({
     buyer_id: buyerId,
     property_id: property.id,
     match_score: 0,
+    agent_notes: agentNotes || null,
   }));
 
   const { error: scoreError } = await supabase
@@ -92,6 +96,74 @@ export async function POST(request: Request) {
 
   if (scoreError) {
     return NextResponse.json({ error: scoreError.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ property });
+}
+
+export async function PATCH(request: Request) {
+  const supabase = (await createClient()) as any;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await request.json();
+  const { propertyId, ...updates } = body;
+
+  if (!propertyId) {
+    return NextResponse.json(
+      { error: "propertyId is required" },
+      { status: 400 }
+    );
+  }
+
+  // Map camelCase to snake_case for allowed fields
+  const fieldMap: Record<string, string> = {
+    address: "address",
+    city: "city",
+    state: "state",
+    zip: "zip",
+    listingPrice: "listing_price",
+    beds: "beds",
+    baths: "baths",
+    sqft: "sqft",
+    lotSqft: "lot_sqft",
+    yearBuilt: "year_built",
+    hoaMonthly: "hoa_monthly",
+    propertyType: "property_type",
+    listingDescription: "listing_description",
+    listingUrl: "zillow_url",
+    photos: "photos",
+    listingStatus: "listing_status",
+  };
+
+  const dbUpdates: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(updates)) {
+    if (fieldMap[key]) {
+      dbUpdates[fieldMap[key]] = value ?? null;
+    }
+  }
+
+  if (Object.keys(dbUpdates).length === 0) {
+    return NextResponse.json(
+      { error: "No valid fields to update" },
+      { status: 400 }
+    );
+  }
+
+  const { data: property, error } = await supabase
+    .from("properties")
+    .update(dbUpdates)
+    .eq("id", propertyId)
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   return NextResponse.json({ property });

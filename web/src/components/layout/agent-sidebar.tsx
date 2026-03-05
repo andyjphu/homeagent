@@ -9,7 +9,6 @@ import {
   Users,
   Building2,
   Briefcase,
-  Mail,
   Phone,
   Settings,
   LogOut,
@@ -25,7 +24,6 @@ const navItems = [
   { href: "/buyers", label: "Clients", icon: Users },
   { href: "/deals", label: "Deals", icon: Briefcase },
   { href: "/properties", label: "Properties", icon: Building2 },
-  { href: "/email", label: "Email", icon: Mail },
   { href: "/calls", label: "Calls", icon: Phone },
 ];
 

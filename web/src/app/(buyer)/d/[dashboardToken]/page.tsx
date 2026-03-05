@@ -10,6 +10,7 @@ import Link from "next/link";
 import { FilterPanel } from "@/components/dashboard/filter-panel";
 import { DealTimeline } from "@/components/dashboard/deal-timeline";
 import { PropertyList } from "@/components/dashboard/property-list";
+import { BuyerDashboardPoller } from "@/components/dashboard/buyer-poller";
 
 function PropertyListSkeleton() {
   return (
@@ -157,6 +158,7 @@ export default async function BuyerDashboardPage({
 
   return (
     <div className="min-h-screen bg-background">
+      <BuyerDashboardPoller />
       {/* Header with subtle gradient accent */}
       <header className="border-b bg-card relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5" />

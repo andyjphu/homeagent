@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { llmJSON } from "@/lib/llm/router";
 import { PROPERTY_SCORING_PROMPT } from "@/lib/llm/prompts/property-scoring";
+import { createActivityEntry } from "@/lib/supabase/activity";
 
 export async function POST(request: Request) {
   const supabase = await createClient() as any;
@@ -90,6 +91,26 @@ Description: ${property.listing_description ?? "N/A"}
     } catch (err) {
       console.error(`Failed to score property ${property.id}:`, err);
       continue;
+    }
+  }
+
+  // Log activity for scoring
+  if (scores.length > 0) {
+    const { data: agentData } = await supabase
+      .from("agents")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (agentData) {
+      await createActivityEntry(
+        agentData.id,
+        "research_completed",
+        `Scored ${scores.length} properties for buyer`,
+        `AI match scores generated`,
+        { scored_count: scores.length },
+        { buyerId }
+      );
     }
   }
 

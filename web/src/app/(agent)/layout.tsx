@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AgentSidebar } from "@/components/layout/agent-sidebar";
 import { ActivityFeed } from "@/components/layout/activity-feed";
 import { TopBar } from "@/components/layout/top-bar";
+import { RealtimeListener } from "@/components/layout/realtime-listener";
 
 export default async function AgentLayout({
   children,
@@ -39,6 +40,7 @@ export default async function AgentLayout({
 
   return (
     <div className="flex h-screen overflow-hidden">
+      <RealtimeListener agentId={agent.id} />
       <AgentSidebar agentName={agent.full_name} agentEmail={agent.email} />
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <TopBar

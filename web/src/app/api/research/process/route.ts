@@ -22,6 +22,7 @@ import {
 import { llmJSON } from "@/lib/llm/router";
 import { PROPERTY_SCORING_PROMPT } from "@/lib/llm/prompts/property-scoring";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createActivityEntry } from "@/lib/supabase/activity";
 
 /**
  * POST /api/research/process
@@ -520,6 +521,19 @@ async function finishPipeline(
       properties_scored: scoredCount,
     },
   });
+
+  // Log research_completed activity
+  const task = await getTask(taskId);
+  if (task?.agent_id) {
+    await createActivityEntry(
+      task.agent_id,
+      "research_completed",
+      `Research completed: ${propertyIds.length} properties found`,
+      `${propertyIds.length} enriched, ${scoredCount} scored`,
+      { properties_found: propertyIds.length, properties_scored: scoredCount },
+      { buyerId: task.buyer_id, taskId }
+    );
+  }
 
   return { stage: "complete", status: "completed", liveUrl: null };
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createActivityEntry } from "@/lib/supabase/activity";
 
 export async function POST(request: Request) {
   const supabase = (await createClient()) as any;
@@ -93,6 +94,16 @@ export async function POST(request: Request) {
   if (scoreError) {
     return NextResponse.json({ error: scoreError.message }, { status: 500 });
   }
+
+  // Log activity
+  await createActivityEntry(
+    agent.id,
+    "properties_sent",
+    `Property added: ${address}`,
+    `Linked to ${buyerIds.length} buyer(s)`,
+    { address, listing_price: listingPrice },
+    { propertyId: property.id }
+  );
 
   return NextResponse.json({ property });
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createActivityEntry } from "@/lib/supabase/activity";
 
 export async function POST(request: Request) {
   const supabase = await createClient() as any;
@@ -25,6 +26,35 @@ export async function POST(request: Request) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Log activity when property is sent to buyer
+  if (sent) {
+    // Look up agent and score context for activity entry
+    const { data: scoreData } = await supabase
+      .from("buyer_property_scores")
+      .select("buyer_id, property_id, properties(address)")
+      .eq("id", scoreId)
+      .single();
+
+    if (scoreData) {
+      const { data: agentData } = await supabase
+        .from("agents")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (agentData) {
+        await createActivityEntry(
+          agentData.id,
+          "properties_sent",
+          `Property sent to buyer`,
+          (scoreData.properties as Record<string, unknown>)?.address as string ?? "Property shared with buyer",
+          undefined,
+          { buyerId: scoreData.buyer_id, propertyId: scoreData.property_id }
+        );
+      }
+    }
   }
 
   return NextResponse.json({ ok: true });

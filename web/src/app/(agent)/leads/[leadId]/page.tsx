@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Check, X, Loader2, ExternalLink, Phone } from "lucide-react";
+import { ArrowLeft, Check, X, Loader2, ExternalLink, Phone, Reply } from "lucide-react";
 import Link from "next/link";
+import { ComposeModal } from "@/components/email/compose-modal";
 
 export default function LeadDetailPage() {
   const params = useParams();
@@ -20,6 +21,7 @@ export default function LeadDetailPage() {
   const [confirming, setConfirming] = useState(false);
   const [dismissing, setDismissing] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [replyOpen, setReplyOpen] = useState(false);
 
   useEffect(() => {
     async function fetchLead() {
@@ -300,6 +302,16 @@ export default function LeadDetailPage() {
                     View in Gmail
                   </a>
                 )}
+                {lead.source === "email" && lead.communications?.from_address && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setReplyOpen(true)}
+                  >
+                    <Reply className="h-3 w-3 mr-1" />
+                    Reply
+                  </Button>
+                )}
               </div>
               <Button
                 variant="outline"
@@ -450,6 +462,22 @@ export default function LeadDetailPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Reply modal for email-sourced leads */}
+      {lead.source === "email" && lead.communications && (
+        <ComposeModal
+          open={replyOpen}
+          onOpenChange={setReplyOpen}
+          initialTo={lead.communications.from_address || ""}
+          initialSubject={
+            lead.communications.subject?.startsWith("Re:")
+              ? lead.communications.subject
+              : `Re: ${lead.communications.subject || ""}`
+          }
+          threadId={lead.communications.gmail_thread_id}
+          inReplyTo={lead.communications.gmail_message_id}
+        />
       )}
     </div>
   );

@@ -8,16 +8,17 @@ import {
   ExternalLink,
   Building2,
   ClipboardList,
-  MapPin,
+  Handshake,
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ResearchTrigger } from "@/components/buyers/research-trigger";
-import { SendToBuyerToggle } from "@/components/buyers/send-to-buyer-toggle";
 import { EmailSummaryButton } from "@/components/buyers/email-summary-button";
 import { CopyLinkButton } from "@/components/buyers/copy-link-button";
 import { ResearchTaskList } from "@/components/buyers/research-task-list";
 import { AddPropertyButton } from "@/components/buyers/add-property-button";
+import { CreateDealButton } from "@/components/deals/create-deal-button";
+import { PropertyScoreCard } from "@/components/buyers/property-score-card";
 
 export default async function BuyerDetailPage({
   params,
@@ -50,6 +51,12 @@ export default async function BuyerDetailPage({
     .eq("buyer_id", buyerId as string)
     .order("occurred_at", { ascending: false })
     .limit(20) as { data: any[] | null };
+
+  const { data: deals } = await supabase
+    .from("deals")
+    .select("*, properties(address, listing_price)")
+    .eq("buyer_id", buyerId)
+    .order("updated_at", { ascending: false });
 
   const intent = (buyer.intent_profile || {}) as any;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -108,6 +115,9 @@ export default async function BuyerDetailPage({
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="properties">
             Properties ({scores?.length ?? 0})
+          </TabsTrigger>
+          <TabsTrigger value="deals">
+            Deals ({deals?.length ?? 0})
           </TabsTrigger>
           <TabsTrigger value="communications">
             Comms ({communications?.length ?? 0})
@@ -231,62 +241,66 @@ export default async function BuyerDetailPage({
               </CardContent>
             </Card>
           ) : (
-            scores.map((score: any) => {
-              const prop = score.properties;
+            scores.map((score: any) => (
+              <PropertyScoreCard
+                key={score.id}
+                score={score}
+                buyerId={buyerId}
+                hasIntakeProfile={hasCompletedIntake}
+              />
+            ))
+          )}
+        </TabsContent>
+
+        {/* Deals tab */}
+        <TabsContent value="deals" className="space-y-3 mt-4">
+          {(!deals || deals.length === 0) ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Handshake className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">
+                  No deals yet. Start a deal from a property card in the Properties tab.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            deals.map((deal: any) => {
+              const prop = deal.properties as any;
               return (
-                <Card key={score.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <Link href={`/properties/${prop?.id}`} className="hover:underline">
-                            <h3 className="font-medium">
-                              {prop?.address}
-                            </h3>
-                          </Link>
-                          {score.is_favorited && (
-                            <Badge variant="destructive">Favorited</Badge>
-                          )}
+                <Link key={deal.id} href={`/deals/${deal.id}`}>
+                  <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium">{prop?.address}</h3>
+                            <Badge variant="outline">
+                              {(deal.stage as string).replace(/_/g, " ")}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            ${prop?.listing_price?.toLocaleString()}
+                            {deal.agreed_price &&
+                              ` · Agreed: $${deal.agreed_price.toLocaleString()}`}
+                          </p>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          ${prop?.listing_price?.toLocaleString()} &middot;{" "}
-                          {prop?.beds} bed / {prop?.baths} bath &middot;{" "}
-                          {prop?.sqft?.toLocaleString()} sqft
-                        </p>
-                        {(prop?.city || prop?.state) && (
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {[prop?.city, prop?.state, prop?.zip].filter(Boolean).join(", ")}
-                          </p>
-                        )}
-                        {score.score_reasoning && (
-                          <p className="text-xs text-muted-foreground mt-1 italic">
-                            {score.score_reasoning}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-2 mt-1">
-                          {prop?.zillow_url && (
-                            <a
-                              href={prop.zillow_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-                            >
-                              Zillow <ExternalLink className="h-3 w-3" />
-                            </a>
+                        <div className="text-right">
+                          {deal.deal_probability != null && (
+                            <div>
+                              <span className="text-lg font-bold">{deal.deal_probability}%</span>
+                              <p className="text-xs text-muted-foreground">probability</p>
+                            </div>
+                          )}
+                          {deal.closing_date && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Close: {new Date(deal.closing_date).toLocaleDateString()}
+                            </p>
                           )}
                         </div>
                       </div>
-                      <div className="text-right flex flex-col items-end shrink-0 ml-4">
-                        <div className="text-2xl font-bold text-primary">
-                          {score.match_score}
-                        </div>
-                        <p className="text-xs text-muted-foreground">match score</p>
-                        <SendToBuyerToggle scoreId={score.id} initialSent={score.is_sent_to_buyer} />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </Link>
               );
             })
           )}

@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   UserPlus,
   Users,
-  Mail,
   Phone,
   Settings,
   LogOut,
@@ -37,7 +36,6 @@ const navItems = [
   { href: "/buyers", label: "Clients", icon: Users },
   { href: "/deals", label: "Deals", icon: Briefcase },
   { href: "/properties", label: "Properties", icon: Building2 },
-  { href: "/email", label: "Email", icon: Mail },
   { href: "/calls", label: "Calls", icon: Phone },
 ];
 
@@ -47,7 +45,7 @@ const pageTitles: Record<string, string> = {
   "/buyers": "Client Portfolio",
   "/deals": "Deals",
   "/properties": "Properties",
-  "/email": "Email",
+  "/email": "Email Integration",
   "/calls": "Calls",
   "/settings": "Settings",
 };

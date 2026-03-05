@@ -3,11 +3,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, FileText, TrendingUp } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DealStageManager } from "@/components/deals/deal-stage-manager";
 import { OfferStrategyPanel } from "@/components/deals/offer-strategy-panel";
+import { AddOfferForm } from "@/components/deals/add-offer-form";
+import { ContractDatesForm } from "@/components/deals/contract-dates-form";
+import { ContractTimeline } from "@/components/deals/contract-timeline";
+
+const UNDER_CONTRACT_STAGES = [
+  "under_contract",
+  "inspection",
+  "appraisal",
+  "closing",
+  "closed",
+];
 
 export default async function DealDetailPage({
   params,
@@ -41,6 +52,8 @@ export default async function DealDetailPage({
 
   const property = deal.properties as any;
   const buyer = deal.buyers as any;
+  const isUnderContract = UNDER_CONTRACT_STAGES.includes(deal.stage);
+  const contingencies = (deal.contingencies ?? {}) as Record<string, string>;
 
   return (
     <div className="space-y-6">
@@ -58,7 +71,10 @@ export default async function DealDetailPage({
         <div>
           <h1 className="text-2xl font-bold">{property?.address}</h1>
           <p className="text-muted-foreground">
-            {buyer?.full_name} &middot; ${property?.listing_price?.toLocaleString()}
+            <Link href={`/buyers/${buyer?.id}`} className="hover:underline">
+              {buyer?.full_name}
+            </Link>
+            {" "}&middot; ${property?.listing_price?.toLocaleString()}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -83,8 +99,8 @@ export default async function DealDetailPage({
           <TabsTrigger value="offers">Offers ({offers?.length ?? 0})</TabsTrigger>
           <TabsTrigger value="strategy">Strategy</TabsTrigger>
           <TabsTrigger value="communications">Communications</TabsTrigger>
-          {deal.stage === "inspection" && (
-            <TabsTrigger value="inspection">Inspection</TabsTrigger>
+          {isUnderContract && (
+            <TabsTrigger value="contract">Contract</TabsTrigger>
           )}
         </TabsList>
 
@@ -128,23 +144,35 @@ export default async function DealDetailPage({
                 {deal.earnest_money && (
                   <p><strong>Earnest Money:</strong> ${deal.earnest_money.toLocaleString()}</p>
                 )}
+                {deal.closed_at && (
+                  <p><strong>Closed At:</strong> {new Date(deal.closed_at).toLocaleDateString()}</p>
+                )}
               </CardContent>
             </Card>
           </div>
 
-          {/* Contingency Timeline */}
-          {deal.contingencies && Object.keys(deal.contingencies as any).length > 0 && (
+          {/* Contract Timeline on Overview when under contract */}
+          {isUnderContract && (
+            <ContractTimeline
+              contractDate={deal.contract_date}
+              closingDate={deal.closing_date}
+              contingencies={contingencies}
+            />
+          )}
+
+          {/* Contingency Timeline (legacy display for non-deadline contingencies) */}
+          {deal.contingencies && Object.keys(contingencies).length > 0 && !isUnderContract && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Contingency Timeline</CardTitle>
+                <CardTitle className="text-base">Contingencies</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 text-sm">
-                  {Object.entries(deal.contingencies as any).map(([key, value]) => (
+                  {Object.entries(contingencies).map(([key, value]) => (
                     <div key={key} className="flex justify-between border-b pb-2">
                       <span className="capitalize">{key.replace(/_/g, " ")}</span>
                       <span className="text-muted-foreground">
-                        {new Date(value as string).toLocaleDateString()}
+                        {new Date(value).toLocaleDateString()}
                       </span>
                     </div>
                   ))}
@@ -156,15 +184,17 @@ export default async function DealDetailPage({
 
         {/* Offers */}
         <TabsContent value="offers" className="space-y-3 mt-4">
+          <AddOfferForm dealId={deal.id} />
+
           {(!offers || offers.length === 0) ? (
             <Card>
               <CardContent className="py-12 text-center">
-                <p className="text-muted-foreground">No offers recorded yet.</p>
+                <p className="text-muted-foreground">No offers recorded yet. Add one above.</p>
               </CardContent>
             </Card>
           ) : (
-            offers.map((offer) => {
-              const analysis = (offer.ai_analysis || {}) as any;
+            offers.map((offer: any) => {
+              const analysis = (offer.ai_analysis || {}) as Record<string, unknown>;
               return (
                 <Card key={offer.id}>
                   <CardContent className="p-4">
@@ -172,7 +202,7 @@ export default async function DealDetailPage({
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <Badge variant="outline">Round {offer.round_number}</Badge>
-                          <Badge>{offer.offer_type}</Badge>
+                          <Badge>{offer.offer_type.replace(/_/g, " ")}</Badge>
                         </div>
                         <p className="text-lg font-bold">
                           ${offer.price.toLocaleString()}
@@ -187,17 +217,22 @@ export default async function DealDetailPage({
                             {offer.other_terms}
                           </p>
                         )}
+                        {offer.response_deadline && (
+                          <p className="text-xs text-muted-foreground">
+                            Response by: {new Date(offer.response_deadline).toLocaleDateString()}
+                          </p>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {new Date(offer.submitted_at).toLocaleDateString()}
                       </p>
                     </div>
-                    {analysis.strategy_recommendation && (
+                    {analysis.strategy_recommendation ? (
                       <div className="mt-3 p-3 bg-muted rounded-lg">
                         <p className="text-xs font-medium mb-1">AI Analysis</p>
-                        <p className="text-sm">{analysis.strategy_recommendation}</p>
+                        <p className="text-sm">{String(analysis.strategy_recommendation)}</p>
                       </div>
-                    )}
+                    ) : null}
                   </CardContent>
                 </Card>
               );
@@ -223,7 +258,7 @@ export default async function DealDetailPage({
               </CardContent>
             </Card>
           ) : (
-            communications.map((comm) => (
+            communications.map((comm: any) => (
               <Card key={comm.id}>
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
@@ -251,26 +286,23 @@ export default async function DealDetailPage({
           )}
         </TabsContent>
 
-        {/* Inspection */}
-        {deal.stage === "inspection" && (
-          <TabsContent value="inspection" className="mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Inspection Analysis</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {deal.inspection_analysis &&
-                Object.keys(deal.inspection_analysis as any).length > 0 ? (
-                  <pre className="text-sm whitespace-pre-wrap">
-                    {JSON.stringify(deal.inspection_analysis, null, 2)}
-                  </pre>
-                ) : (
-                  <p className="text-muted-foreground">
-                    Upload an inspection report to get AI analysis.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+        {/* Contract Tab - Under Contract details */}
+        {isUnderContract && (
+          <TabsContent value="contract" className="space-y-4 mt-4">
+            <ContractDatesForm
+              dealId={deal.id}
+              contractDate={deal.contract_date}
+              closingDate={deal.closing_date}
+              earnestMoney={deal.earnest_money}
+              agreedPrice={deal.agreed_price}
+              contingencies={contingencies}
+            />
+
+            <ContractTimeline
+              contractDate={deal.contract_date}
+              closingDate={deal.closing_date}
+              contingencies={contingencies}
+            />
           </TabsContent>
         )}
       </Tabs>

@@ -8,6 +8,7 @@ import {
   ExternalLink,
   Building2,
   ClipboardList,
+  Handshake,
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -16,6 +17,7 @@ import { EmailSummaryButton } from "@/components/buyers/email-summary-button";
 import { CopyLinkButton } from "@/components/buyers/copy-link-button";
 import { ResearchTaskList } from "@/components/buyers/research-task-list";
 import { AddPropertyButton } from "@/components/buyers/add-property-button";
+import { CreateDealButton } from "@/components/deals/create-deal-button";
 import { PropertyScoreCard } from "@/components/buyers/property-score-card";
 
 export default async function BuyerDetailPage({
@@ -49,6 +51,12 @@ export default async function BuyerDetailPage({
     .eq("buyer_id", buyerId as string)
     .order("occurred_at", { ascending: false })
     .limit(20) as { data: any[] | null };
+
+  const { data: deals } = await supabase
+    .from("deals")
+    .select("*, properties(address, listing_price)")
+    .eq("buyer_id", buyerId)
+    .order("updated_at", { ascending: false });
 
   const intent = (buyer.intent_profile || {}) as any;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -107,6 +115,9 @@ export default async function BuyerDetailPage({
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="properties">
             Properties ({scores?.length ?? 0})
+          </TabsTrigger>
+          <TabsTrigger value="deals">
+            Deals ({deals?.length ?? 0})
           </TabsTrigger>
           <TabsTrigger value="communications">
             Comms ({communications?.length ?? 0})
@@ -238,6 +249,60 @@ export default async function BuyerDetailPage({
                 hasIntakeProfile={hasCompletedIntake}
               />
             ))
+          )}
+        </TabsContent>
+
+        {/* Deals tab */}
+        <TabsContent value="deals" className="space-y-3 mt-4">
+          {(!deals || deals.length === 0) ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Handshake className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">
+                  No deals yet. Start a deal from a property card in the Properties tab.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            deals.map((deal: any) => {
+              const prop = deal.properties as any;
+              return (
+                <Link key={deal.id} href={`/deals/${deal.id}`}>
+                  <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium">{prop?.address}</h3>
+                            <Badge variant="outline">
+                              {(deal.stage as string).replace(/_/g, " ")}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            ${prop?.listing_price?.toLocaleString()}
+                            {deal.agreed_price &&
+                              ` · Agreed: $${deal.agreed_price.toLocaleString()}`}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          {deal.deal_probability != null && (
+                            <div>
+                              <span className="text-lg font-bold">{deal.deal_probability}%</span>
+                              <p className="text-xs text-muted-foreground">probability</p>
+                            </div>
+                          )}
+                          {deal.closing_date && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Close: {new Date(deal.closing_date).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })
           )}
         </TabsContent>
 

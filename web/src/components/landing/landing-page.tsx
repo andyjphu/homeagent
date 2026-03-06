@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Building2,
   LayoutDashboard,
@@ -56,7 +57,7 @@ const demoBuyers = [
 const demoProperties = [
   {
     id: 1,
-    address: "742 Evergreen Terrace",
+    address: "4817 Ridgewood Dr",
     price: "$725,000",
     beds: 4,
     baths: 2.5,
@@ -66,7 +67,7 @@ const demoProperties = [
   },
   {
     id: 2,
-    address: "1600 Pennsylvania Ave NW",
+    address: "310 Birch Hollow Ln",
     price: "$689,000",
     beds: 3,
     baths: 2,
@@ -76,7 +77,7 @@ const demoProperties = [
   },
   {
     id: 3,
-    address: "221B Baker Street",
+    address: "1205 Crescent Park Blvd",
     price: "$752,000",
     beds: 3,
     baths: 3,
@@ -87,9 +88,9 @@ const demoProperties = [
 ];
 
 const demoDeals = [
-  { buyer: "Sarah Chen", property: "742 Evergreen Terrace", stage: "Negotiating", daysInStage: 3 },
-  { buyer: "Marcus Johnson", property: "88 Sunset Blvd", stage: "Touring", daysInStage: 7 },
-  { buyer: "Lisa Wang", property: "45 Oak Lane", stage: "Closing", daysInStage: 12 },
+  { buyer: "Sarah Chen", property: "4817 Ridgewood Dr", stage: "Negotiating", daysInStage: 3 },
+  { buyer: "Marcus Johnson", property: "782 Westlake Ave", stage: "Touring", daysInStage: 7 },
+  { buyer: "Lisa Wang", property: "2340 Summit Ct", stage: "Closing", daysInStage: 12 },
 ];
 
 const features = [
@@ -144,12 +145,12 @@ function InteractiveDemo() {
     <div className="rounded-xl border bg-card shadow-lg overflow-hidden">
       {/* Mock top bar */}
       <div className="flex items-center gap-2 border-b bg-muted/30 px-4 py-3">
-        <Building2 className="h-5 w-5 text-primary" />
+        <Image src="/foyerfindclear.svg" alt="FoyerFind" width={20} height={20} />
         <span className="font-semibold text-sm">FoyerFind</span>
         <span className="text-xs text-muted-foreground ml-2">Demo Mode</span>
       </div>
 
-      <div className="flex min-h-[420px]">
+      <div className="flex flex-col sm:flex-row min-h-[420px]">
         {/* Sidebar (desktop) */}
         <div className="hidden sm:flex w-48 flex-col border-r bg-muted/10 p-3 gap-1">
           {(
@@ -329,7 +330,7 @@ export function LandingPage() {
       <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
         <div className="mx-auto max-w-6xl flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2">
-            <Building2 className="h-6 w-6 text-primary" />
+            <Image src="/foyerfindclear.svg" alt="FoyerFind" width={24} height={24} />
             <span className="text-xl font-bold">FoyerFind</span>
           </div>
           <div className="flex items-center gap-3">
@@ -509,8 +510,9 @@ export function LandingPage() {
             src="https://calendly.com/andy-phtlabs/discovery?embed_type=Inline"
             width="100%"
             height="660"
-            frameBorder="0"
             title="Book a discovery call"
+            loading="lazy"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
             className="border-0"
           />
         </div>
@@ -548,7 +550,7 @@ export function LandingPage() {
       <footer className="border-t">
         <div className="mx-auto max-w-6xl px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-muted-foreground" />
+            <Image src="/foyerfindclear.svg" alt="FoyerFind" width={16} height={16} className="opacity-50" />
             <span className="text-sm text-muted-foreground">FoyerFind</span>
           </div>
           <div className="flex items-center gap-6 text-sm text-muted-foreground">

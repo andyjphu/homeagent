@@ -18,6 +18,8 @@ import { EmailSummaryButton } from "@/components/buyers/email-summary-button";
 import { CopyLinkButton } from "@/components/buyers/copy-link-button";
 import { ResearchTaskList } from "@/components/buyers/research-task-list";
 import { AddPropertyButton } from "@/components/buyers/add-property-button";
+import { SearchListingsButton } from "@/components/buyers/search-listings-button";
+import { PropertiesRefreshListener } from "@/components/buyers/properties-refresh-listener";
 
 export default async function BuyerDetailPage({
   params,
@@ -218,7 +220,12 @@ export default async function BuyerDetailPage({
 
         {/* Properties tab */}
         <TabsContent value="properties" className="space-y-3 mt-4">
-          <div className="flex justify-end">
+          <PropertiesRefreshListener />
+          <div className="flex justify-end gap-2">
+            <SearchListingsButton
+              buyerId={buyerId}
+              intentProfile={intent}
+            />
             <AddPropertyButton buyerId={buyerId} />
           </div>
           {(!scores || scores.length === 0) ? (

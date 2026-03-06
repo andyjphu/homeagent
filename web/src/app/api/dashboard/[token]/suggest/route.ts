@@ -1,31 +1,33 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createActivityEntry } from "@/lib/supabase/activity";
 
-export async function POST(request: Request) {
+/**
+ * Buyer suggests a property from listing search.
+ * Creates the property record and links it to the buyer,
+ * then notifies the agent so they can review it.
+ */
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ token: string }> }
+) {
   try {
-    const supabase = (await createClient()) as any;
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { token } = await params;
+    const supabase = createAdminClient() as any;
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { data: agent } = await supabase
-      .from("agents")
-      .select("id")
-      .eq("user_id", user.id)
+    // Validate dashboard token
+    const { data: buyer } = await supabase
+      .from("buyers")
+      .select("id, agent_id, full_name")
+      .eq("dashboard_token", token)
       .single();
 
-    if (!agent) {
-      return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+    if (!buyer) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const body = await request.json();
     const {
-      buyerIds,
       address,
       city,
       state,
@@ -36,16 +38,13 @@ export async function POST(request: Request) {
       sqft,
       lotSqft,
       yearBuilt,
-      hoaMonthly,
       propertyType,
       listingDescription,
       listingUrl,
-      // Import-specific fields
       photos,
       latitude,
       longitude,
       daysOnMarket,
-      imported,
     } = body;
 
     if (!address) {
@@ -55,18 +54,11 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!buyerIds || buyerIds.length === 0) {
-      return NextResponse.json(
-        { error: "At least one buyer is required" },
-        { status: 400 }
-      );
-    }
-
-    // Insert property
+    // Insert property (owned by the buyer's agent)
     const { data: property, error: propError } = await supabase
       .from("properties")
       .insert({
-        agent_id: agent.id,
+        agent_id: buyer.agent_id,
         address,
         city: city || null,
         state: state || null,
@@ -77,7 +69,6 @@ export async function POST(request: Request) {
         sqft: sqft || null,
         lot_sqft: lotSqft || null,
         year_built: yearBuilt || null,
-        hoa_monthly: hoaMonthly || null,
         property_type: propertyType || null,
         listing_description: listingDescription || null,
         zillow_url: listingUrl || null,
@@ -94,41 +85,46 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: propError.message }, { status: 500 });
     }
 
-    // Link to each buyer
-    const scoreInserts = buyerIds.map((buyerId: string) => ({
-      buyer_id: buyerId,
-      property_id: property.id,
-      match_score: 0,
-    }));
-
+    // Link to buyer (score 0 until agent reviews)
+    // NOT sent to buyer yet — agent reviews first
     const { error: scoreError } = await supabase
       .from("buyer_property_scores")
-      .insert(scoreInserts);
+      .insert({
+        buyer_id: buyer.id,
+        property_id: property.id,
+        match_score: 0,
+        is_sent_to_buyer: false,
+      });
 
     if (scoreError) {
       return NextResponse.json({ error: scoreError.message }, { status: 500 });
     }
 
-    // Log activity for imports
-    if (imported) {
-      await createActivityEntry(
-        agent.id,
-        "property_imported",
-        `Property imported: ${address}`,
-        city && state ? `${city}, ${state}` : undefined,
-        { source: "listing_search" },
-        {
-          propertyId: property.id,
-          buyerId: buyerIds[0],
-        }
-      );
-    }
+    // Notify agent — buyer suggested a property, needs review
+    await createActivityEntry(
+      buyer.agent_id,
+      "property_imported",
+      `${buyer.full_name} suggested a property: ${address}`,
+      city && state ? `${city}, ${state} — $${listingPrice?.toLocaleString() ?? "N/A"}` : undefined,
+      { source: "buyer_dashboard_search", suggested_by: "buyer" },
+      {
+        buyerId: buyer.id,
+        propertyId: property.id,
+        isActionRequired: true,
+      }
+    );
+
+    // Update buyer last activity
+    await supabase
+      .from("buyers")
+      .update({ last_activity_at: new Date().toISOString() })
+      .eq("id", buyer.id);
 
     return NextResponse.json({ property });
   } catch (err: unknown) {
-    console.error("[properties] Error:", err);
+    console.error("[dashboard/suggest] Error:", err);
     return NextResponse.json(
-      { error: "Failed to create property" },
+      { error: "Failed to suggest property" },
       { status: 500 }
     );
   }

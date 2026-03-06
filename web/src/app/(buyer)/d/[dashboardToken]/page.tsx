@@ -10,6 +10,7 @@ import Link from "next/link";
 import { FilterPanel } from "@/components/dashboard/filter-panel";
 import { DealTimeline } from "@/components/dashboard/deal-timeline";
 import { PropertyList } from "@/components/dashboard/property-list";
+import { BuyerSearchListings } from "@/components/dashboard/buyer-search-listings";
 
 function PropertyListSkeleton() {
   return (
@@ -145,6 +146,7 @@ export default async function BuyerDashboardPage({
 
   const intent = (buyer.intent_profile || {}) as any;
   const agentName = (buyer.agents as any)?.full_name;
+  const searchAvailable = !!process.env.RAPIDAPI_KEY;
 
   // Format last updated timestamp
   const lastUpdated = buyer.updated_at
@@ -226,7 +228,14 @@ export default async function BuyerDashboardPage({
 
         {/* Property list */}
         <div>
-          <h2 className="text-xl font-bold mb-4">Your Properties</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold">Your Properties</h2>
+            <BuyerSearchListings
+              dashboardToken={dashboardToken}
+              intentProfile={intent}
+              searchAvailable={searchAvailable}
+            />
+          </div>
           <Suspense fallback={<PropertyListSkeleton />}>
             <PropertySection
               buyerId={buyer.id}

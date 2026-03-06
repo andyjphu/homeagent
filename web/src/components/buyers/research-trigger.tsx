@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2, AlertTriangle, ExternalLink } from "lucide-react";
+import { Sparkles, Loader2, AlertTriangle, ExternalLink } from "lucide-react";
 
 export function ResearchTrigger({
   buyerId,
@@ -59,9 +59,9 @@ export function ResearchTrigger({
         {loading ? (
           <Loader2 className="h-4 w-4 mr-1 animate-spin" />
         ) : (
-          <Search className="h-4 w-4 mr-1" />
+          <Sparkles className="h-4 w-4 mr-1" />
         )}
-        {loading ? "Starting..." : "Run Research"}
+        {loading ? "Starting..." : "Run AI Research"}
       </Button>
       {error && (
         <span className="text-xs text-destructive flex items-center gap-1 max-w-80">

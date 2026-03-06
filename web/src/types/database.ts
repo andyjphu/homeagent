@@ -76,7 +76,8 @@ export type ActivityEventType =
   | "inspection_analyzed"
   | "appraisal_received"
   | "deadline_approaching"
-  | "deal_closed";
+  | "deal_closed"
+  | "property_imported";
 
 export interface Database {
   public: {

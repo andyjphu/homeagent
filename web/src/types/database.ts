@@ -79,6 +79,32 @@ export type ActivityEventType =
   | "deal_closed"
   | "property_imported";
 
+export interface AgentPreferences {
+  // Notifications
+  new_leads: boolean;
+  email_activity: boolean;
+  property_changes: boolean;
+  deadline_reminders: boolean;
+  // Voice AI
+  auto_create_leads_from_calls: boolean;
+  // Enrichment
+  auto_enrich_properties: boolean;
+  // AI Features
+  ai_property_scoring: boolean;
+  ai_email_classification: boolean;
+}
+
+export const DEFAULT_PREFERENCES: AgentPreferences = {
+  new_leads: true,
+  email_activity: true,
+  property_changes: true,
+  deadline_reminders: true,
+  auto_create_leads_from_calls: true,
+  auto_enrich_properties: true,
+  ai_property_scoring: true,
+  ai_email_classification: true,
+};
+
 export interface Database {
   public: {
     Tables: {

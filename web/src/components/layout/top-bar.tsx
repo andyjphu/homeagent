@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   UserPlus,
   Users,
-  Mail,
   Phone,
   Settings,
   LogOut,
@@ -27,7 +26,9 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+const LAST_VIEWED_KEY = "ha:last-activity-viewed";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -35,7 +36,6 @@ const navItems = [
   { href: "/buyers", label: "Clients", icon: Users },
   { href: "/deals", label: "Deals", icon: Briefcase },
   { href: "/properties", label: "Properties", icon: Building2 },
-  { href: "/email", label: "Email", icon: Mail },
   { href: "/calls", label: "Calls", icon: Phone },
 ];
 
@@ -45,7 +45,7 @@ const pageTitles: Record<string, string> = {
   "/buyers": "Client Portfolio",
   "/deals": "Deals",
   "/properties": "Properties",
-  "/email": "Email",
+  "/email": "Email Integration",
   "/calls": "Calls",
   "/settings": "Settings",
 };
@@ -69,6 +69,21 @@ export function TopBar({ agentName, agentEmail, actionCount }: TopBarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [newActivityDot, setNewActivityDot] = useState(false);
+
+  // Listen for realtime activity events from RealtimeListener
+  useEffect(() => {
+    function handleNewActivity() {
+      setNewActivityDot(true);
+    }
+    window.addEventListener("ha:new-activity", handleNewActivity);
+    return () => window.removeEventListener("ha:new-activity", handleNewActivity);
+  }, []);
+
+  function handleBellClick() {
+    setNewActivityDot(false);
+    localStorage.setItem(LAST_VIEWED_KEY, new Date().toISOString());
+  }
 
   const initials = agentName
     .split(" ")
@@ -173,11 +188,20 @@ export function TopBar({ agentName, agentEmail, actionCount }: TopBarProps) {
       <div className="flex-1" />
 
       {/* Notification bell */}
-      <Button variant="ghost" size="icon" className="relative shrink-0">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="relative shrink-0"
+        onClick={handleBellClick}
+      >
         <Bell className="h-5 w-5" />
-        {actionCount > 0 && (
+        {(actionCount > 0 || newActivityDot) && (
           <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-destructive-foreground">
-            {actionCount > 9 ? "9+" : actionCount}
+            {actionCount > 0
+              ? actionCount > 9
+                ? "9+"
+                : actionCount
+              : ""}
           </span>
         )}
         <span className="sr-only">Notifications</span>

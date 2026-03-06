@@ -22,7 +22,7 @@ export async function fetchRecentEmails(
 ): Promise<GmailMessage[]> {
   const gmail = google.gmail({ version: "v1", auth });
 
-  let query = "in:inbox OR in:sent";
+  let query = "in:inbox";
   if (after) {
     const afterEpoch = Math.floor(new Date(after).getTime() / 1000);
     query += ` after:${afterEpoch}`;

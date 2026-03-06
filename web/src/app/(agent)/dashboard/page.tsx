@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import { NewLeadsSection } from "@/components/dashboard/new-leads-section";
 import { ActiveBuyersSection } from "@/components/dashboard/active-buyers-section";
+import { DashboardScanBar } from "@/components/dashboard/dashboard-scan-bar";
 import {
   StatsRowSkeleton,
   LeadsSkeleton,
@@ -198,6 +199,12 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Email Lead Detection */}
+      <DashboardScanBar
+        gmailConnected={agent.gmail_connected}
+        lastScanAt={agent.gmail_last_scan_at}
+      />
 
       {/* New Leads — interactive client component */}
       <NewLeadsSection

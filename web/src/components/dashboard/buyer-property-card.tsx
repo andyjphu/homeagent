@@ -361,11 +361,11 @@ export function BuyerPropertyCard({
             </div>
           </div>
 
-          {/* Score reasoning — AI-generated */}
+          {/* Score reasoning */}
           {score.score_reasoning && (
             <div className="bg-muted/50 p-3 rounded-lg">
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                AI-suggested analysis
+                {score.score_breakdown?.source === "manual" ? "Agent analysis" : "AI-suggested analysis"}
               </p>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {score.score_reasoning}
@@ -466,11 +466,12 @@ export function BuyerPropertyCard({
           {/* Expandable details */}
           {showDetails && (
             <div className="space-y-4 pt-3 border-t animate-in fade-in-0 slide-in-from-top-2 duration-200">
-              {/* Score breakdown — AI-generated */}
+              {/* Score breakdown */}
               {score.score_breakdown &&
                 typeof score.score_breakdown === "object" &&
                 !Array.isArray(score.score_breakdown) &&
-                Object.keys(score.score_breakdown).length > 0 && (
+                Object.keys(score.score_breakdown).filter(k => k !== "source").length > 0 &&
+                score.score_breakdown.source !== "manual" && (
                   <div>
                     <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
                       AI-suggested match breakdown
@@ -480,7 +481,7 @@ export function BuyerPropertyCard({
                         score.score_breakdown as Record<string, number>
                       ).map(
                         ([key, val]) =>
-                          typeof val === "number" && (
+                          key !== "source" && typeof val === "number" && (
                             <ScoreBar
                               key={key}
                               label={key

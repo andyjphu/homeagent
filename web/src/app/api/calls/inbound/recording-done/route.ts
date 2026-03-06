@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createActivityEntry } from "@/lib/supabase/activity";
 
 export const maxDuration = 300;
 
@@ -159,6 +160,16 @@ export async function POST(request: Request) {
       comm.id,
       "Lead created:",
       lead?.id
+    );
+
+    // Log activity for the inbound call
+    await createActivityEntry(
+      agent.id,
+      "call_completed",
+      `Inbound call from ${callerPhone}`,
+      `Duration: ${recordingDuration}s — transcription pending`,
+      { caller: callerPhone, duration: recordingDuration },
+      { communicationId: comm.id }
     );
   }
 

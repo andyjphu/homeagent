@@ -88,7 +88,7 @@ export function ActivityFeed({ agentId }: { agentId: string }) {
 
     // Subscribe to realtime
     const channel = supabase
-      .channel("activity-feed")
+      .channel(`agent-${agentId}-activity`)
       .on(
         "postgres_changes",
         {

@@ -1,9 +1,51 @@
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Mail, Calendar, CheckCircle } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import {
+  Mail,
+  CheckCircle,
+  XCircle,
+  Phone,
+  Cpu,
+  MapPin,
+  Brain,
+  Bell,
+  Shield,
+  Zap,
+} from "lucide-react";
 import { GmailConnectButton } from "@/components/email/gmail-connect-button";
 import { ProfileForm } from "@/components/settings/profile-form";
+import { PreferencesForm } from "@/components/settings/preferences-form";
+import { SignOutButton } from "@/components/settings/sign-out-button";
+import type { AgentPreferences } from "@/types/database";
+import { DEFAULT_PREFERENCES } from "@/types/database";
+
+function StatusBadge({ connected, label }: { connected: boolean; label?: string }) {
+  if (connected) {
+    return (
+      <Badge variant="default" className="gap-1">
+        <CheckCircle className="h-3 w-3" />
+        {label || "Connected"}
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="text-muted-foreground gap-1">
+      <XCircle className="h-3 w-3" />
+      {label || "Not configured"}
+    </Badge>
+  );
+}
+
+function AlwaysAvailableBadge() {
+  return (
+    <Badge variant="secondary" className="gap-1">
+      <CheckCircle className="h-3 w-3" />
+      Always available
+    </Badge>
+  );
+}
 
 export default async function SettingsPage() {
   const supabase = await createClient() as any;
@@ -19,81 +61,272 @@ export default async function SettingsPage() {
 
   if (!agent) return null;
 
+  // Check environment variables server-side
+  const envStatus = {
+    // Voice AI
+    vapiKey: !!process.env.VAPI_API_KEY,
+    retellKey: !!process.env.RETELL_API_KEY,
+    // Enrichment
+    walkScore: !!process.env.WALKSCORE_API_KEY,
+    googleMaps: !!process.env.GOOGLE_MAPS_API_KEY,
+    census: !!process.env.CENSUS_API_KEY,
+    greatSchools: !!process.env.GREATSCHOOLS_API_KEY,
+    crimeOMeter: !!process.env.CRIMEOMETER_API_KEY,
+    // LLM
+    cerebras: !!process.env.CEREBRAS_API_KEY,
+    gemini: !!process.env.GEMINI_API_KEY,
+  };
+
+  const voiceAiConnected = envStatus.vapiKey || envStatus.retellKey;
+  const anyEnrichmentConfigured = envStatus.walkScore || envStatus.googleMaps || envStatus.census;
+  const anyLlmConfigured = envStatus.cerebras || envStatus.gemini;
+
+  const preferences: AgentPreferences = {
+    ...DEFAULT_PREFERENCES,
+    ...(agent.notification_preferences as Partial<AgentPreferences> || {}),
+  };
+
+  // Format last scan time
+  const lastScanTime = agent.gmail_last_scan_at
+    ? new Date(agent.gmail_last_scan_at).toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : null;
+
   return (
     <div className="max-w-2xl space-y-6">
       <h1 className="text-2xl font-bold">Settings</h1>
 
-      {/* Profile */}
+      {/* 1. Agent Profile */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Profile</CardTitle>
+          <CardTitle className="text-base">Agent Profile</CardTitle>
+          <CardDescription>Your contact information and preferences</CardDescription>
         </CardHeader>
         <CardContent>
           <ProfileForm agent={agent} />
         </CardContent>
       </Card>
 
-      {/* Integrations */}
+      {/* 2. Gmail Connection */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Integrations</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Mail className="h-4 w-4" />
+            Gmail Connection
+          </CardTitle>
+          <CardDescription>Connect Gmail to read emails, detect leads, and send on your behalf</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-3 rounded-lg border">
-            <div className="flex items-center gap-3">
-              <Mail className="h-5 w-5" />
-              <div>
-                <p className="font-medium">Gmail</p>
-                <p className="text-xs text-muted-foreground">
-                  Read emails, detect leads, send on your behalf
-                </p>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Status</span>
+                <StatusBadge connected={agent.gmail_connected} />
               </div>
+              {agent.gmail_connected && lastScanTime && (
+                <p className="text-xs text-muted-foreground">
+                  Last synced: {lastScanTime}
+                </p>
+              )}
             </div>
             <GmailConnectButton isConnected={agent.gmail_connected} />
-          </div>
-
-          <div className="flex items-center justify-between p-3 rounded-lg border">
-            <div className="flex items-center gap-3">
-              <Calendar className="h-5 w-5" />
-              <div>
-                <p className="font-medium">Google Calendar</p>
-                <p className="text-xs text-muted-foreground">
-                  Schedule tours, track deadlines
-                </p>
-              </div>
-            </div>
-            <Badge variant="outline" className="text-muted-foreground">
-              Coming Soon
-            </Badge>
           </div>
         </CardContent>
       </Card>
 
-      {/* LLM Configuration */}
+      {/* 3. Voice AI Receptionist */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">AI Configuration</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Phone className="h-4 w-4" />
+            Voice AI Receptionist
+          </CardTitle>
+          <CardDescription>
+            AI-powered phone receptionist that handles incoming calls and captures leads
+          </CardDescription>
         </CardHeader>
-        <CardContent className="text-sm space-y-2">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Fast Analysis (Cerebras)</span>
-            {process.env.CEREBRAS_API_KEY ? (
-              <Badge variant="default" className="gap-1"><CheckCircle className="h-3 w-3" />Connected</Badge>
-            ) : (
-              <Badge variant="outline" className="text-muted-foreground">Not configured</Badge>
-            )}
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Status</span>
+            <StatusBadge connected={voiceAiConnected} />
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Deep Analysis (Gemini)</span>
-            {process.env.GEMINI_API_KEY ? (
-              <Badge variant="default" className="gap-1"><CheckCircle className="h-3 w-3" />Connected</Badge>
-            ) : (
-              <Badge variant="outline" className="text-muted-foreground">Not configured</Badge>
-            )}
+
+          {voiceAiConnected ? (
+            <>
+              <Separator />
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Provider</span>
+                  <span>{envStatus.vapiKey ? "Vapi" : "Retell"}</span>
+                </div>
+                <div className="rounded-lg border p-3 bg-muted/50">
+                  <p className="font-medium text-xs mb-1">Call Forwarding Setup</p>
+                  <p className="text-xs text-muted-foreground">
+                    Forward your business line to your AI receptionist number when unavailable.
+                    The AI will greet callers, capture their details, and create leads automatically.
+                  </p>
+                </div>
+              </div>
+              <Separator />
+              <PreferencesForm preferences={preferences} section="voice_ai" />
+            </>
+          ) : (
+            <div className="rounded-lg border p-3 bg-muted/50 text-sm">
+              <p className="text-muted-foreground">
+                Connect a Voice AI provider (Vapi or Retell) to enable an AI phone receptionist
+                that handles incoming calls when you&apos;re unavailable. The AI captures caller details
+                and automatically creates leads in your pipeline.
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Configure <code className="text-xs bg-muted px-1 rounded">VAPI_API_KEY</code> or{" "}
+                <code className="text-xs bg-muted px-1 rounded">RETELL_API_KEY</code> in your environment to get started.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 4. Data Enrichment Status */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <MapPin className="h-4 w-4" />
+            Data Enrichment
+          </CardTitle>
+          <CardDescription>
+            External data sources for property enrichment
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center justify-between py-1">
+              <span>Walk Score</span>
+              <StatusBadge connected={envStatus.walkScore} />
+            </div>
+            <div className="flex items-center justify-between py-1">
+              <span>Google Maps</span>
+              <StatusBadge connected={envStatus.googleMaps} />
+            </div>
+            <div className="flex items-center justify-between py-1">
+              <span>FEMA Flood Data</span>
+              <AlwaysAvailableBadge />
+            </div>
+            <div className="flex items-center justify-between py-1">
+              <span>Census Demographics</span>
+              <StatusBadge connected={envStatus.census} />
+            </div>
+            <div className="flex items-center justify-between py-1">
+              <span>FCC Broadband</span>
+              <AlwaysAvailableBadge />
+            </div>
+            <div className="flex items-center justify-between py-1">
+              <span>GreatSchools</span>
+              <StatusBadge connected={envStatus.greatSchools} />
+            </div>
+            <div className="flex items-center justify-between py-1">
+              <span>CrimeOMeter</span>
+              <StatusBadge connected={envStatus.crimeOMeter} />
+            </div>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Communication Tone</span>
-            <span className="capitalize">{agent.communication_tone}</span>
+
+          {anyEnrichmentConfigured && (
+            <>
+              <Separator />
+              <PreferencesForm preferences={preferences} section="enrichment" />
+            </>
+          )}
+
+          {!anyEnrichmentConfigured && (
+            <p className="text-xs text-muted-foreground pt-1">
+              Configure API keys for enrichment providers to automatically fetch property data.
+              FEMA and FCC data are always available (free, no key required).
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 5. LLM / AI Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Brain className="h-4 w-4" />
+            AI Configuration
+          </CardTitle>
+          <CardDescription>
+            AI features are optional enhancements. The app works fully without them.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center justify-between py-1">
+              <div className="flex items-center gap-2">
+                <Zap className="h-3.5 w-3.5 text-muted-foreground" />
+                <span>Fast Analysis (Cerebras)</span>
+              </div>
+              <StatusBadge connected={envStatus.cerebras} />
+            </div>
+            <div className="flex items-center justify-between py-1">
+              <div className="flex items-center gap-2">
+                <Cpu className="h-3.5 w-3.5 text-muted-foreground" />
+                <span>Deep Analysis (Gemini)</span>
+              </div>
+              <StatusBadge connected={envStatus.gemini} />
+            </div>
+          </div>
+
+          {anyLlmConfigured && (
+            <>
+              <Separator />
+              <PreferencesForm preferences={preferences} section="ai" />
+            </>
+          )}
+
+          {!anyLlmConfigured && (
+            <p className="text-xs text-muted-foreground">
+              No AI providers configured. Configure <code className="text-xs bg-muted px-1 rounded">CEREBRAS_API_KEY</code>{" "}
+              or <code className="text-xs bg-muted px-1 rounded">GEMINI_API_KEY</code> to enable AI features.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 6. Notification Preferences */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Bell className="h-4 w-4" />
+            Notification Preferences
+          </CardTitle>
+          <CardDescription>
+            Choose which events generate alerts in your activity feed
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PreferencesForm preferences={preferences} section="notifications" />
+        </CardContent>
+      </Card>
+
+      {/* 7. Sign Out */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Account
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Sign out</p>
+              <p className="text-xs text-muted-foreground">
+                Clears your session and returns to login
+              </p>
+            </div>
+            <SignOutButton />
           </div>
         </CardContent>
       </Card>

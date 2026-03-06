@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# HomeAgent — run Next.js + Python browser agent locally
+# FoyerFind — run Next.js + Python browser agent locally
 # Usage: ./run.sh
 
 set -e
@@ -47,7 +47,7 @@ if [ ! -d "$AGENT_DIR/.venv" ]; then
   "$AGENT_DIR/.venv/bin/pip" install -r "$AGENT_DIR/requirements.txt"
 fi
 
-echo -e "${GREEN}Starting HomeAgent...${NC}"
+echo -e "${GREEN}Starting FoyerFind...${NC}"
 echo ""
 
 # Start Python browser agent (port 8000)

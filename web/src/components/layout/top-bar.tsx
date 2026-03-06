@@ -56,7 +56,7 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith("/buyers/")) return "Client Details";
   if (pathname.startsWith("/deals/")) return "Deal Details";
   if (pathname.startsWith("/properties/")) return "Property Details";
-  return "HomeAgent";
+  return "FoyerFind";
 }
 
 interface TopBarProps {
@@ -113,7 +113,7 @@ export function TopBar({ agentName, agentEmail, actionCount }: TopBarProps) {
           <SheetHeader className="px-6 pt-6 pb-0">
             <SheetTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5 text-primary" />
-              HomeAgent
+              FoyerFind
             </SheetTitle>
           </SheetHeader>
           <Separator className="mt-4" />

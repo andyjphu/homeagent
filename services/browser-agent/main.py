@@ -8,7 +8,7 @@ from agents.walkscore_search import WalkScoreAgent
 from agents.commute_search import CommuteAgent
 from task_queue.manager import queue_manager
 
-app = FastAPI(title="HomeAgent Browser Agent")
+app = FastAPI(title="FoyerFind Browser Agent")
 
 app.add_middleware(
     CORSMiddleware,

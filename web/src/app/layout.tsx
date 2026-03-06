@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HomeAgent",
+  title: "FoyerFind",
   description: "The command center for buyer's agents",
 };
 

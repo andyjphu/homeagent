@@ -47,7 +47,7 @@ export function DashboardScanBar({
                   Connect Gmail to detect leads from your inbox
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  HomeAgent scans your email for buying-intent messages and
+                  FoyerFind scans your email for buying-intent messages and
                   surfaces them as leads
                 </p>
               </div>

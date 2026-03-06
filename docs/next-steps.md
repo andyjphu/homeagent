@@ -1,4 +1,4 @@
-# HomeAgent — Next Steps
+# FoyerFind — Next Steps
 
 > Prioritized implementation backlog. Derived from Phase 8-11 spec audit (Mar 2026).
 > Schema/DB columns for most of these already exist — work is mostly API routes + UI.

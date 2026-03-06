@@ -1,4 +1,4 @@
-# HomeAgent — Web Frontend
+# FoyerFind — Web Frontend
 
 Next.js 16 + React 19 + TypeScript + Tailwind CSS + shadcn/ui
 

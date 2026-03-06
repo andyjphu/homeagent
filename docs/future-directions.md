@@ -1,4 +1,4 @@
-# HomeAgent — Future Directions
+# FoyerFind — Future Directions
 
 > Research-backed opportunities. Sources: NAR data, Redfin commission reports, kvCORE/FUB user reviews, proptech VC tracking, housing economist forecasts (Mar 2026).
 
@@ -82,7 +82,7 @@
 |---------|------|-------------|
 | Lofty | Launched "Lofty AOS" — agentic AI that autonomously manages workflows | Agentic execution is coming; design data model to support it |
 | Breezy | AI operating system for residential agents, VC-backed, Feb 2026 launch | Direct competition; watch positioning and pricing |
-| Zillow/Realtor.com | Portal fragmentation trend may push buyers back to agent relationships | Could increase value of buyer's agent; good for HomeAgent positioning |
+| Zillow/Realtor.com | Portal fragmentation trend may push buyers back to agent relationships | Could increase value of buyer's agent; good for FoyerFind positioning |
 | Bridge Interactive / Spark API | MLS direct-feed access is increasingly viable and affordable | Build toward this; don't depend on portals long-term |
 
 **Architectural considerations for future-proofing:**

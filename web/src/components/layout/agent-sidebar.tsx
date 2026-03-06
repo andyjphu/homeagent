@@ -54,7 +54,7 @@ export function AgentSidebar({ agentName, agentEmail }: AgentSidebarProps) {
     <aside className="hidden md:flex h-screen w-64 flex-col border-r bg-card">
       <div className="flex items-center gap-2 p-6">
         <Building2 className="h-6 w-6 text-primary" />
-        <span className="text-lg font-bold">HomeAgent</span>
+        <span className="text-lg font-bold">FoyerFind</span>
       </div>
       <Separator />
       <nav className="flex-1 space-y-1 p-3">

@@ -1,8 +1,8 @@
-# HomeAgent — Project Guide
+# FoyerFind — Project Guide
 
 ## What This Is
 
-HomeAgent is a **command center for buyer's real estate agents**. It helps agents manage leads, curate property shortlists for clients, share private dashboards with buyers, and track deals through closing.
+FoyerFind is a **command center for buyer's real estate agents**. It helps agents manage leads, curate property shortlists for clients, share private dashboards with buyers, and track deals through closing.
 
 **It is NOT "an AI product."** It is a productivity and workflow tool for agents. AI capabilities (LLM scoring, email classification, market analysis) exist as optional enhancements that can be toggled on — but the product must work and be valuable without them.
 
@@ -11,7 +11,7 @@ HomeAgent is a **command center for buyer's real estate agents**. It helps agent
 - **Agent-first, AI-second.** The product sells because it saves agents time and helps them demonstrate value to clients. AI is an accelerant, not the pitch.
 - **Ship narrow, ship working.** Two features done well beat thirteen features stubbed. Every feature must actually work end-to-end before moving to the next.
 - **Legal data only.** Never scrape Zillow, Redfin, or any site that prohibits it. Use MLS APIs (Bridge Interactive, Spark/RESO, SimplyRETS) or manual agent entry. Scraping is a liability.
-- **Post-NAR positioning.** After the 2024 NAR settlement, buyer's agents must justify their commission. HomeAgent is the tool that helps agents prove their value — showing clients the research, curation, and negotiation work being done on their behalf.
+- **Post-NAR positioning.** After the 2024 NAR settlement, buyer's agents must justify their commission. FoyerFind is the tool that helps agents prove their value — showing clients the research, curation, and negotiation work being done on their behalf.
 
 ---
 
@@ -86,7 +86,7 @@ The 2024 NAR settlement fundamentally changed buyer's agent economics:
 - Buyer's agent compensation is no longer guaranteed via MLS
 - Agents must articulate and demonstrate their value to earn commission
 
-**HomeAgent addresses this directly:**
+**FoyerFind addresses this directly:**
 - The buyer dashboard is a transparency tool — clients see exactly what work their agent is doing
 - Property curation with reasoning shows the agent's expertise (not just sending auto-alerts)
 - Deal tracking proves the agent is managing complexity the buyer can't handle alone

@@ -1,4 +1,4 @@
--- HomeAgent - Initial Database Schema
+-- FoyerFind - Initial Database Schema
 -- ============================================================
 -- ENUMS
 -- ============================================================

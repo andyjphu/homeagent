@@ -30,7 +30,7 @@ export default async function EmailPage() {
             <h2 className="text-lg font-semibold mb-2">Connect Gmail</h2>
             <p className="text-muted-foreground mb-4 max-w-md mx-auto">
               Connect your Gmail to automatically detect potential leads from
-              your inbox. HomeAgent scans for buying-intent emails and surfaces
+              your inbox. FoyerFind scans for buying-intent emails and surfaces
               them on your Dashboard.
             </p>
             <a href="/api/email/connect">

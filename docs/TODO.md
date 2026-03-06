@@ -1,4 +1,4 @@
-# HomeAgent — Claude Code Build Prompts
+# FoyerFind — Claude Code Build Prompts
 
 > **Warning (March 2026):** Many prompts below reference outdated assumptions — Zillow scraping via Browser Use, Claude Sonnet/Opus as the LLM layer, and "AI-powered intelligence layer" positioning. The project has shifted:
 > - **No scraping.** Property data comes from agent manual entry (MVP) or MLS APIs (future). Zillow/Redfin scraping is prohibited.
@@ -36,9 +36,9 @@
 ### Prompt 0A — Monorepo Setup
 
 ```
-Create a monorepo for "HomeAgent AI" with this structure:
+Create a monorepo for "FoyerFind AI" with this structure:
 
-/homeagent
+/foyerfind
   /backend          — FastAPI Python app
   /frontend         — Next.js 14 App Router with TypeScript
   /agents           — Browser Use agent code (Python)
@@ -84,7 +84,7 @@ Include a Makefile with: make up, make down, make db-reset (supabase db reset), 
 ### Prompt 0B — Database Schema & Migrations
 
 ```
-In the HomeAgent project, create a Supabase SQL migration (supabase/migrations/001_initial_schema.sql) with the full data model. Use UUID primary keys (gen_random_uuid()), created_at/updated_at timestamps with triggers on everything, and soft deletes (deleted_at nullable) where appropriate.
+In the FoyerFind project, create a Supabase SQL migration (supabase/migrations/001_initial_schema.sql) with the full data model. Use UUID primary keys (gen_random_uuid()), created_at/updated_at timestamps with triggers on everything, and soft deletes (deleted_at nullable) where appropriate.
 
 **Custom types (enums):**
 - buyer_source: 'manual', 'email', 'call'
@@ -158,7 +158,7 @@ Also create all the Pydantic v2 schemas (Create, Update, Read) for each table in
 ### Prompt 1A — Auth & Layout
 
 ```
-In the HomeAgent frontend, implement:
+In the FoyerFind frontend, implement:
 
 1. **Supabase Auth** with Google OAuth provider:
    - Configure Supabase Auth in the dashboard to enable Google OAuth (for Gmail scope access later)
@@ -190,7 +190,7 @@ Make it look polished — not generic. Use a professional real estate aesthetic.
 ### Prompt 1B — Backend API for Command Center
 
 ```
-In the HomeAgent backend, create the API routes that power the command center. Use the supabase-py client for all DB access (not raw SQL or an ORM).
+In the FoyerFind backend, create the API routes that power the command center. Use the supabase-py client for all DB access (not raw SQL or an ORM).
 
 **Auth middleware:**
 Create a FastAPI dependency get_current_agent(authorization: str = Header()) that:
@@ -227,7 +227,7 @@ All queries are automatically scoped to agent_id via the auth middleware + RLS p
 ### Prompt 1C — Connect Frontend to Backend
 
 ```
-In the HomeAgent frontend, wire up the command center to real API data:
+In the FoyerFind frontend, wire up the command center to real API data:
 
 1. Create an API client utility that:
    - Gets the Supabase session token via supabase.auth.getSession()
@@ -591,7 +591,7 @@ Build the email monitoring system:
 ```
 Build the call capture and intelligence system. Two capture methods:
 
-**Primary (production): iOS 18 native call recording.** Agent records calls using the built-in iPhone record button (iOS 18.1+). Recording + transcript auto-save to the Notes app. Agent shares the audio to HomeAgent afterward via iOS Share Sheet. One extra tap after the call.
+**Primary (production): iOS 18 native call recording.** Agent records calls using the built-in iPhone record button (iOS 18.1+). Recording + transcript auto-save to the Notes app. Agent shares the audio to FoyerFind afterward via iOS Share Sheet. One extra tap after the call.
 
 **Secondary (demo / power users): Twilio conference bridge.** Fully automatic capture — no post-call step. Better for demos because the entire flow is visible in the app. Keep this as an opt-in "auto-capture" mode.
 
@@ -599,17 +599,17 @@ Both paths feed into the same Whisper transcription → Claude analysis pipeline
 
 ---
 
-## PRIMARY FLOW: iOS 18 Native Recording + Share to HomeAgent
+## PRIMARY FLOW: iOS 18 Native Recording + Share to FoyerFind
 
 **How it works from the agent's perspective:**
 1. Agent makes/receives a call normally in the iPhone Phone app
-2. During the call, taps the waveform icon (top-left of call screen) to start recording — this is native iOS, nothing to do with HomeAgent
+2. During the call, taps the waveform icon (top-left of call screen) to start recording — this is native iOS, nothing to do with FoyerFind
 3. iOS announces "This call is being recorded" to both parties (handles legal disclosure automatically)
 4. Call ends. Recording + transcript saved to Notes app under "Call Recordings" folder
-5. Agent opens the note → taps Share → taps "HomeAgent" (or "Save Audio to Files" → shared folder)
-6. HomeAgent receives the audio, runs Whisper + Claude analysis, and the call intelligence appears in the command center
+5. Agent opens the note → taps Share → taps "FoyerFind" (or "Save Audio to Files" → shared folder)
+6. FoyerFind receives the audio, runs Whisper + Claude analysis, and the call intelligence appears in the command center
 
-**The key insight:** iOS 18 already solved the hard part (capturing call audio + legal disclosure). HomeAgent just needs to be a good receiver and analyzer. Don't rebuild what Apple already ships.
+**The key insight:** iOS 18 already solved the hard part (capturing call audio + legal disclosure). FoyerFind just needs to be a good receiver and analyzer. Don't rebuild what Apple already ships.
 
 **Backend:**
 
@@ -722,7 +722,7 @@ Both paths feed into the same Whisper transcription → Claude analysis pipeline
      - This step can be skipped — the AI will attempt to identify the caller from the transcript content
    - **Step 2 — Share the recording:**
      - Three options presented:
-       - **"Share from Notes"** (recommended) — instructions: "Open Notes → Call Recordings → tap the recording → Share → HomeAgent". If the app is registered as a Share Extension target, this opens HomeAgent directly with the file. If not, agent uses "Save Audio to Files" and the app reads from a shared iCloud Drive folder.
+       - **"Share from Notes"** (recommended) — instructions: "Open Notes → Call Recordings → tap the recording → Share → FoyerFind". If the app is registered as a Share Extension target, this opens FoyerFind directly with the file. If not, agent uses "Save Audio to Files" and the app reads from a shared iCloud Drive folder.
        - **"Upload file"** — standard file picker (for recordings saved to Files, Voice Memos, etc.)
        - **"Paste transcript only"** — textarea for pasting the iOS-generated transcript text. No audio, but analysis still runs. Fastest option.
    - **Step 3 — Processing:**
@@ -731,15 +731,15 @@ Both paths feed into the same Whisper transcription → Claude analysis pipeline
      - Agent can navigate away — they'll get a notification when done
 
 3. **iOS Share Extension (ideal, requires some native code):**
-   Register HomeAgent as a Share Extension target so it appears in the iOS Share Sheet. When the agent shares a call recording from Notes:
-   - HomeAgent app/PWA opens with the audio file pre-loaded
+   Register FoyerFind as a Share Extension target so it appears in the iOS Share Sheet. When the agent shares a call recording from Notes:
+   - FoyerFind app/PWA opens with the audio file pre-loaded
    - Quick-select contact linking screen appears
    - One tap to submit → processing begins
-   - This is the smoothest path: Record (native) → Notes → Share → HomeAgent → done
+   - This is the smoothest path: Record (native) → Notes → Share → FoyerFind → done
 
 4. **Alternative: watched iCloud Drive folder:**
-   During onboarding, agent sets up an iOS Shortcut (provided by HomeAgent):
-   - Shortcut: "When a new note appears in Call Recordings folder → Save Audio to Files → iCloud Drive/HomeAgent/Recordings"
+   During onboarding, agent sets up an iOS Shortcut (provided by FoyerFind):
+   - Shortcut: "When a new note appears in Call Recordings folder → Save Audio to Files → iCloud Drive/FoyerFind/Recordings"
    - Backend periodically checks this shared folder for new files (or uses iCloud Drive API)
    - Fully automatic after initial setup, but depends on Shortcuts reliability
 
@@ -750,8 +750,8 @@ Both paths feed into the same Whisper transcription → Claude analysis pipeline
 Keep this for demos and as an opt-in power-user feature. The agent enables "Auto-Capture Mode" in settings, which uses the Twilio bridge approach.
 
 **How it works:**
-1. Agent opens HomeAgent → taps "Recorded Call" on a buyer/deal page
-2. Selects the contact → HomeAgent calls Twilio → Twilio calls the agent's iPhone
+1. Agent opens FoyerFind → taps "Recorded Call" on a buyer/deal page
+2. Selects the contact → FoyerFind calls Twilio → Twilio calls the agent's iPhone
 3. Agent answers → dials the other party → taps Merge Calls on iPhone
 4. Twilio records both sides. When call ends, recording auto-flows into the analysis pipeline. Zero post-call steps.
 
@@ -877,8 +877,8 @@ Keep this for demos and as an opt-in power-user feature. The agent enables "Auto
 
 **Onboarding checklist (shown in Settings):**
 - [ ] iPhone running iOS 18.1+ (required for native call recording)
-- [ ] "Add HomeAgent to Home Screen" (for quick Share Sheet access)
-- [ ] Optional: Install the "Auto-Share Call Recordings" iOS Shortcut (automates the Notes → HomeAgent step)
+- [ ] "Add FoyerFind to Home Screen" (for quick Share Sheet access)
+- [ ] Optional: Install the "Auto-Share Call Recordings" iOS Shortcut (automates the Notes → FoyerFind step)
 - [ ] Optional: Enable Auto-Capture Mode (requires phone number for Twilio bridge)
 ```
 

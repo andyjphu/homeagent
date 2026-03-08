@@ -12,6 +12,7 @@ import {
   FileAudio,
   Loader2,
   ChevronRight,
+  Bot,
 } from "lucide-react";
 import { CallDetailView } from "./call-detail-view";
 
@@ -79,7 +80,9 @@ export function CallList({ calls }: { calls: CallRecord[] }) {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0 space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      {call.recording_url ? (
+                      {source === "ai_voice_agent" ? (
+                        <Bot className="h-4 w-4 text-violet-500 flex-shrink-0" />
+                      ) : call.recording_url ? (
                         <FileAudio className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       ) : (
                         <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -87,13 +90,20 @@ export function CallList({ calls }: { calls: CallRecord[] }) {
                       <span className="font-medium text-sm truncate">
                         {call.subject || (callerName ? `Call with ${callerName}` : "Call logged")}
                       </span>
-                      <Badge variant="outline" className="text-xs">
-                        {source === "upload"
-                          ? "Uploaded"
-                          : source === "manual"
-                            ? "Manual"
-                            : call.direction}
-                      </Badge>
+                      {source === "ai_voice_agent" ? (
+                        <Badge className="text-xs bg-violet-100 text-violet-700 border-violet-200 hover:bg-violet-100">
+                          <Bot className="h-3 w-3 mr-1" />
+                          AI Receptionist
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs">
+                          {source === "upload"
+                            ? "Uploaded"
+                            : source === "manual"
+                              ? "Manual"
+                              : call.direction}
+                        </Badge>
+                      )}
                       {isProcessing && (
                         <Badge variant="outline" className="text-xs">
                           <Loader2 className="h-3 w-3 mr-1 animate-spin" />

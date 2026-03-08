@@ -18,6 +18,7 @@ import { GmailConnectButton } from "@/components/email/gmail-connect-button";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { PreferencesForm } from "@/components/settings/preferences-form";
 import { SignOutButton } from "@/components/settings/sign-out-button";
+import { VoiceAiStatus } from "@/components/settings/voice-ai-status";
 import type { AgentPreferences } from "@/types/database";
 import { DEFAULT_PREFERENCES } from "@/types/database";
 
@@ -163,14 +164,8 @@ export default async function SettingsPage() {
                   <span className="text-muted-foreground">Provider</span>
                   <span>{envStatus.vapiKey ? "Vapi" : "Retell"}</span>
                 </div>
-                <div className="rounded-lg border p-3 bg-muted/50">
-                  <p className="font-medium text-xs mb-1">Call Forwarding Setup</p>
-                  <p className="text-xs text-muted-foreground">
-                    Forward your business line to your AI receptionist number when unavailable.
-                    The AI will greet callers, capture their details, and create leads automatically.
-                  </p>
-                </div>
               </div>
+              <VoiceAiStatus />
               <Separator />
               <PreferencesForm preferences={preferences} section="voice_ai" />
             </>

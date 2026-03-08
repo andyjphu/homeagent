@@ -173,7 +173,16 @@ export async function POST(request: Request) {
         ? (confidence === "high" ? "medium" : confidence)
         : confidence;
 
-    // Update communication record
+    // Fetch existing ai_analysis to preserve voice agent metadata
+    const { data: existingComm } = await admin
+      .from("communications")
+      .select("ai_analysis")
+      .eq("id", communicationId)
+      .single();
+    const existingAnalysis = (existingComm?.ai_analysis ?? {}) as Record<string, unknown>;
+
+    // Update communication record — preserve original source if it was ai_voice_agent
+    const originalSource = existingAnalysis.source;
     await admin
       .from("communications")
       .update({
@@ -181,8 +190,10 @@ export async function POST(request: Request) {
         is_processed: true,
         processed_at: new Date().toISOString(),
         ai_analysis: {
+          ...existingAnalysis,
           status: "processed",
-          source: extractionSource,
+          extraction_source: extractionSource,
+          source: originalSource || extractionSource,
           storage_path: storagePath,
           caller_name: extraction.caller_name || callerName,
           extraction,

@@ -40,6 +40,7 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/api/dashboard") ||
     request.nextUrl.pathname.startsWith("/api/calls/inbound") ||
     request.nextUrl.pathname.startsWith("/api/calls/process") ||
+    request.nextUrl.pathname.startsWith("/api/calls/voice-agent/webhook") ||
     request.nextUrl.pathname.startsWith("/api/properties/search/status");
 
   if (!user && !isPublicRoute && request.nextUrl.pathname !== "/") {

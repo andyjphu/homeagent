@@ -17,6 +17,7 @@ import {
   AlertCircle,
   FileText,
   Loader2,
+  Bot,
 } from "lucide-react";
 
 interface CallAnalysis {
@@ -44,6 +45,12 @@ interface CallAnalysis {
     summary: string;
     action_items: string[];
   };
+  // Voice agent fields
+  platform?: string;
+  sentiment?: string;
+  call_successful?: boolean;
+  is_voicemail?: boolean;
+  structured_data?: Record<string, unknown>;
   // Legacy Twilio fields
   buyer_temperature?: string;
   action_items?: Array<{ action: string; deadline?: string }>;
@@ -85,6 +92,7 @@ export function CallDetailView({
     "Unknown";
 
   const summary = extraction?.summary || analysis.summary;
+  const isVoiceAgent = analysis.source === "ai_voice_agent";
 
   return (
     <div className="space-y-4">
@@ -92,18 +100,29 @@ export function CallDetailView({
       <div className="flex items-start justify-between">
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Phone className="h-5 w-5" />
+            {isVoiceAgent ? (
+              <Bot className="h-5 w-5 text-violet-500" />
+            ) : (
+              <Phone className="h-5 w-5" />
+            )}
             {call.subject || `Call with ${callerName}`}
           </h3>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <Badge variant="outline">{call.direction}</Badge>
-            <Badge variant="outline">
-              {analysis.source === "upload"
-                ? "Uploaded"
-                : analysis.source === "manual"
-                  ? "Manual log"
-                  : analysis.source || "Call"}
-            </Badge>
+            {isVoiceAgent ? (
+              <Badge className="bg-violet-100 text-violet-700 border-violet-200 hover:bg-violet-100">
+                <Bot className="h-3 w-3 mr-1" />
+                AI Receptionist
+              </Badge>
+            ) : (
+              <Badge variant="outline">
+                {analysis.source === "upload"
+                  ? "Uploaded"
+                  : analysis.source === "manual"
+                    ? "Manual log"
+                    : analysis.source || "Call"}
+              </Badge>
+            )}
             {analysis.status && (
               <Badge
                 variant={
@@ -185,6 +204,57 @@ export function CallDetailView({
         </Card>
       )}
 
+      {/* AI Qualification Summary (voice agent calls) */}
+      {isVoiceAgent && (analysis.sentiment || analysis.call_successful != null || analysis.platform) && (
+        <Card>
+          <CardHeader className="pb-2 pt-3 px-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Bot className="h-4 w-4 text-violet-500" />
+              AI Qualification Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-3 pt-0">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              {analysis.platform && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Platform</p>
+                  <p className="font-medium capitalize">{analysis.platform}</p>
+                </div>
+              )}
+              {analysis.sentiment && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Caller Sentiment</p>
+                  <Badge
+                    variant={
+                      analysis.sentiment.toLowerCase().includes("positive")
+                        ? "secondary"
+                        : analysis.sentiment.toLowerCase().includes("negative")
+                          ? "destructive"
+                          : "outline"
+                    }
+                    className="text-xs mt-0.5"
+                  >
+                    {analysis.sentiment}
+                  </Badge>
+                </div>
+              )}
+              {analysis.call_successful != null && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Call Successful</p>
+                  <p className="font-medium">{analysis.call_successful ? "Yes" : "No"}</p>
+                </div>
+              )}
+              {analysis.is_voicemail && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Type</p>
+                  <Badge variant="outline" className="text-xs mt-0.5">Voicemail</Badge>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Extracted Info */}
       {extraction && extraction.is_real_estate_related !== false && (
         <Card>
@@ -199,10 +269,10 @@ export function CallDetailView({
                   <div>
                     <p className="text-xs text-muted-foreground">Contact</p>
                     <p className="font-medium">{extraction.caller_name || callerName}</p>
-                    {extraction.phone && (
+                    {extraction.phone && extraction.phone !== "null" && (
                       <p className="text-xs text-muted-foreground">{extraction.phone}</p>
                     )}
-                    {extraction.email && (
+                    {extraction.email && extraction.email !== "null" && (
                       <p className="text-xs text-muted-foreground">{extraction.email}</p>
                     )}
                   </div>
@@ -260,11 +330,11 @@ export function CallDetailView({
               )}
             </div>
 
-            {extraction.must_haves.length > 0 && (
+            {extraction.must_haves.filter((v) => v && v !== "null").length > 0 && (
               <div className="mt-3">
                 <p className="text-xs text-muted-foreground mb-1">Must-haves</p>
                 <div className="flex flex-wrap gap-1">
-                  {extraction.must_haves.map((item) => (
+                  {extraction.must_haves.filter((v) => v && v !== "null").map((item) => (
                     <Badge key={item} variant="secondary" className="text-xs">
                       {item}
                     </Badge>
@@ -273,11 +343,11 @@ export function CallDetailView({
               </div>
             )}
 
-            {extraction.deal_breakers.length > 0 && (
+            {extraction.deal_breakers.filter((v) => v && v !== "null").length > 0 && (
               <div className="mt-2">
                 <p className="text-xs text-muted-foreground mb-1">Deal breakers</p>
                 <div className="flex flex-wrap gap-1">
-                  {extraction.deal_breakers.map((item) => (
+                  {extraction.deal_breakers.filter((v) => v && v !== "null").map((item) => (
                     <Badge key={item} variant="destructive" className="text-xs">
                       {item}
                     </Badge>

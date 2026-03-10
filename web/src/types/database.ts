@@ -250,6 +250,7 @@ export interface Database {
           monitoring_interval_hours: number;
           scraped_at: string | null;
           research_task_id: string | null;
+          enrichment_data: Json;
           created_at: string;
           updated_at: string;
         };
@@ -264,6 +265,7 @@ export interface Database {
           beds?: number | null;
           baths?: number | null;
           sqft?: number | null;
+          enrichment_data?: Json;
         };
         Update: Partial<Database["public"]["Tables"]["properties"]["Row"]>;
       };
@@ -521,6 +523,28 @@ export interface Database {
           content: string;
         };
         Update: Partial<Database["public"]["Tables"]["buyer_comments"]["Row"]>;
+      };
+      enrichment_cache: {
+        Row: {
+          id: string;
+          address_normalized: string;
+          lat: number | null;
+          lng: number | null;
+          provider: string;
+          data: Json;
+          fetched_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          address_normalized: string;
+          provider: string;
+          data: Json;
+          lat?: number | null;
+          lng?: number | null;
+          fetched_at?: string;
+          expires_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["enrichment_cache"]["Row"]>;
       };
     };
   };

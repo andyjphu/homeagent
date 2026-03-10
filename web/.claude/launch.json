@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "/Users/haneesh/.nvm/versions/node/v22.13.0/bin/node",
+      "runtimeArgs": ["/Users/haneesh/mainhomeagent/web/node_modules/.bin/next", "dev"],
       "port": 3000,
       "autoPort": true
     }

@@ -85,6 +85,7 @@ export interface AgentPreferences {
   email_activity: boolean;
   property_changes: boolean;
   deadline_reminders: boolean;
+  sms_notifications: boolean;
   // Voice AI
   auto_create_leads_from_calls: boolean;
   // Enrichment
@@ -99,6 +100,7 @@ export const DEFAULT_PREFERENCES: AgentPreferences = {
   email_activity: true,
   property_changes: true,
   deadline_reminders: true,
+  sms_notifications: true,
   auto_create_leads_from_calls: true,
   auto_enrich_properties: true,
   ai_property_scoring: true,
@@ -126,6 +128,7 @@ export interface Database {
           email_signature: string | null;
           communication_tone: string;
           negotiation_style_profile: Json;
+          timezone: string;
           created_at: string;
           updated_at: string;
         };
@@ -545,6 +548,44 @@ export interface Database {
           expires_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["enrichment_cache"]["Row"]>;
+      };
+      notifications: {
+        Row: {
+          id: string;
+          agent_id: string;
+          event_type: ActivityEventType;
+          channel: "email" | "sms";
+          status: "sent" | "failed" | "queued" | "batched";
+          recipient: string;
+          subject: string | null;
+          body: string;
+          payload: Json;
+          activity_id: string | null;
+          buyer_id: string | null;
+          property_id: string | null;
+          deal_id: string | null;
+          error_message: string | null;
+          scheduled_for: string | null;
+          sent_at: string;
+          created_at: string;
+        };
+        Insert: {
+          agent_id: string;
+          event_type: ActivityEventType;
+          channel: "email" | "sms";
+          status?: "sent" | "failed" | "queued" | "batched";
+          recipient: string;
+          subject?: string | null;
+          body: string;
+          payload?: Json;
+          activity_id?: string | null;
+          buyer_id?: string | null;
+          property_id?: string | null;
+          deal_id?: string | null;
+          error_message?: string | null;
+          scheduled_for?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["notifications"]["Row"]>;
       };
     };
   };

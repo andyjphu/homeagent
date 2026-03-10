@@ -122,6 +122,12 @@ export interface Database {
           gmail_token_expires_at: string | null;
           gmail_last_scan_at: string | null;
           calendar_connected: boolean;
+          google_calendar_access_token: string | null;
+          google_calendar_refresh_token: string | null;
+          google_calendar_token_expires_at: string | null;
+          calendar_working_hours: Json;
+          calendar_auto_create_events: boolean;
+          calendar_show_availability: boolean;
           notification_preferences: Json;
           email_signature: string | null;
           communication_tone: string;
@@ -436,6 +442,28 @@ export interface Database {
           deal_id?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["activity_feed"]["Row"]>;
+      };
+      calendar_events: {
+        Row: {
+          id: string;
+          agent_id: string;
+          deal_id: string;
+          google_event_id: string;
+          event_type: string;
+          event_date: string | null;
+          summary: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          agent_id: string;
+          deal_id: string;
+          google_event_id: string;
+          event_type: string;
+          event_date?: string | null;
+          summary?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["calendar_events"]["Row"]>;
       };
       agent_tasks: {
         Row: {

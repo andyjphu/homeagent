@@ -55,7 +55,7 @@ export default async function PropertyDetailPage({
               rel="noopener noreferrer"
               className="text-xs text-primary hover:underline inline-flex items-center gap-1"
             >
-              View on Zillow <ExternalLink className="h-3 w-3" />
+              View Listing <ExternalLink className="h-3 w-3" />
             </a>
           )}
         </div>

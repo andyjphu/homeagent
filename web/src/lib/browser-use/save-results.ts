@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const supabase = createAdminClient() as any;
 
 /**
- * Save or update a property. Deduplicates on zillow_url (explicit check + update/insert,
+ * Save or update a property. Deduplicates on address + agent_id (explicit check + update/insert,
  * matching the Python agent's behavior).
  * Returns the property ID.
  */
@@ -45,13 +45,13 @@ export async function saveProperty(
     if (row[key] === undefined) delete row[key];
   }
 
-  // Check for existing property by zillow_url to avoid duplicates
-  const zillowUrl = row.zillow_url;
-  if (zillowUrl) {
+  // Check for existing property by address + agent_id to avoid duplicates
+  if (row.address && agentId) {
     const { data: existing } = await supabase
       .from("properties")
       .select("id")
-      .eq("zillow_url", zillowUrl);
+      .eq("address", row.address)
+      .eq("agent_id", agentId);
 
     if (existing && existing.length > 0) {
       const propId = existing[0].id;

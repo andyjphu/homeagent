@@ -153,18 +153,19 @@ class BaseResearchAgent:
         ).eq("id", self.task_id).execute()
 
     async def save_property(self, property_data: dict) -> str:
-        """Save or update a property in the database. Deduplicates on zillow_url."""
+        """Save or update a property in the database. Deduplicates on address + agent_id."""
         property_data["agent_id"] = self.agent_id
         property_data["research_task_id"] = self.task_id
         property_data["scraped_at"] = datetime.utcnow().isoformat()
 
-        # Check for existing property by zillow_url to avoid duplicates
-        zillow_url = property_data.get("zillow_url")
-        if zillow_url:
+        # Check for existing property by address + agent_id to avoid duplicates
+        address = property_data.get("address")
+        if address:
             existing = (
                 supabase.table("properties")
                 .select("id")
-                .eq("zillow_url", zillow_url)
+                .eq("address", address)
+                .eq("agent_id", self.agent_id)
                 .execute()
             )
             if existing.data:

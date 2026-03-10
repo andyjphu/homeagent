@@ -12,8 +12,6 @@ import {
   AlertTriangle,
   Loader2,
   Circle,
-  ExternalLink,
-  Eye,
 } from "lucide-react";
 
 interface ExecutionEvent {
@@ -37,10 +35,9 @@ interface Task {
 
 // Human-readable stage descriptions
 const STAGE_LABELS: Record<string, string> = {
-  zillow_search: "Searching Zillow for properties...",
   enrichment: "Enriching properties (schools, walkability, commute)...",
   scoring: "Scoring properties against buyer criteria...",
-  complete: "Research complete",
+  complete: "Enrichment complete",
 };
 
 const ENRICHMENT_TYPE_LABELS: Record<string, string> = {
@@ -51,18 +48,20 @@ const ENRICHMENT_TYPE_LABELS: Record<string, string> = {
 
 // Event → human label mapping
 const EVENT_LABELS: Record<string, (data?: any) => string> = {
-  pipeline_start: () => "Pipeline started",
-  stage_zillow_start: () => "Searching Zillow...",
-  stage_zillow_done: (d) => `Found ${d?.property_count ?? "?"} properties on Zillow`,
-  stage_zillow_failed: (d) => `Zillow search failed: ${d?.error ?? "unknown error"}`,
-  no_properties_found: () => "No properties found",
-  candidates_selected: (d) => `Selected ${d?.count ?? "?"} top candidates`,
-  property_saved: (d) => `Saved: ${d?.address ?? "property"}`,
-  property_save_error: (d) => `Failed to save: ${d?.address ?? "property"}`,
+  pipeline_start: (d) => `Pipeline started (${d?.property_count ?? "?"} properties)`,
+  delegated_to_python_service: (d) => `Delegated to research service (${d?.property_count ?? "?"} properties)`,
+  python_service_failed: (d) => `Research service unavailable: ${d?.error ?? "unknown"}`,
+  using_api_enrichment_fallback: () => "Using API-based enrichment (research service unavailable)",
+  no_properties_to_enrich: () => "No properties to enrich",
   stage_crossref_start: (d) => `Enriching ${d?.property_count ?? "?"} properties...`,
   stage_crossref_skipped: () => "Enrichment skipped",
   crossref_start: (d) => `Enriching ${d?.address ?? "property"} (${d?.index}/${d?.total})`,
-  property_enriched: (d) => `Updated: ${d?.fields_updated?.join(", ") ?? "enriched"}`,
+  property_enriched: (d) => {
+    if (d?.fields_updated) return `Updated: ${d.fields_updated.join(", ")}`;
+    if (d?.index) return `Enriched property ${d.index}/${d.total}`;
+    return "Property enriched";
+  },
+  enrichment_failed: (d) => `Enrichment failed: ${d?.error ?? "unknown"}`,
   property_no_enrichment: () => "No enrichment data found",
   property_not_found: () => "Property not found in database",
   school_failed: (d) => `School search failed: ${d?.error ?? d?.address ?? "unknown"}`,
@@ -74,42 +73,34 @@ const EVENT_LABELS: Record<string, (data?: any) => string> = {
   pipeline_complete: (d) =>
     `Complete: ${d?.property_ids?.length ?? 0} properties, ${d?.enriched ?? 0} enriched, ${d?.scored ?? 0} scored`,
   pipeline_error: (d) => `Pipeline error: ${d?.error ?? "unknown"}`,
-  search_page_start: (d) => `Searching page ${d?.page ?? "?"}`,
-  search_page_done: (d) => `Page ${d?.page}: found ${d?.found ?? 0} listings`,
-  search_complete: (d) => `Search complete: ${d?.total_listings ?? 0} total listings`,
 };
 
 const WARN_EVENTS = new Set([
   "school_failed",
   "walkscore_failed",
   "commute_failed",
-  "stage_zillow_failed",
+  "enrichment_failed",
   "stage_scoring_failed",
   "property_not_found",
   "property_no_enrichment",
-  "property_save_error",
+  "python_service_failed",
   "pipeline_error",
-  "search_page_parse_error",
-  "search_page_error",
 ]);
 
 const SUCCESS_EVENTS = new Set([
   "pipeline_complete",
   "property_enriched",
-  "property_saved",
-  "stage_zillow_done",
   "stage_scoring_done",
-  "search_complete",
+  "delegated_to_python_service",
 ]);
 
 // Events to show by default (hide noisy sub-events unless expanded)
 const PRIMARY_EVENTS = new Set([
   "pipeline_start",
-  "stage_zillow_start",
-  "stage_zillow_done",
-  "stage_zillow_failed",
-  "no_properties_found",
-  "candidates_selected",
+  "delegated_to_python_service",
+  "python_service_failed",
+  "using_api_enrichment_fallback",
+  "no_properties_to_enrich",
   "stage_crossref_start",
   "stage_crossref_skipped",
   "crossref_start",
@@ -119,7 +110,6 @@ const PRIMARY_EVENTS = new Set([
   "stage_scoring_failed",
   "pipeline_complete",
   "pipeline_error",
-  "search_complete",
 ]);
 
 function formatEventLabel(event: ExecutionEvent): string {
@@ -151,30 +141,18 @@ function getStageDescription(task: Task): string | null {
   if (!od?.pipeline_stage) return null;
 
   const stage = od.pipeline_stage;
-  if (stage === "enrichment" && od.enrichment_type) {
-    const typeLabel = ENRICHMENT_TYPE_LABELS[od.enrichment_type] ?? od.enrichment_type;
-    const propIdx = od.enrichment_index ?? 0;
-    const total = od.property_ids?.length ?? "?";
-    return `${typeLabel} (property ${propIdx + 1}/${total})...`;
+  if (stage === "enrichment") {
+    if (od.enrichment_type) {
+      const typeLabel = ENRICHMENT_TYPE_LABELS[od.enrichment_type] ?? od.enrichment_type;
+      const propIdx = od.enrichment_index ?? 0;
+      const total = od.property_ids?.length ?? "?";
+      return `${typeLabel} (property ${propIdx + 1}/${total})...`;
+    }
+    if (od.enrichment_progress != null && od.enrichment_total != null) {
+      return `Enriching properties (${od.enrichment_progress}/${od.enrichment_total})...`;
+    }
   }
   return STAGE_LABELS[stage] ?? stage;
-}
-
-function LivePreview({ liveUrl }: { liveUrl: string }) {
-  return (
-    <div className="mt-2">
-      <a
-        href={liveUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
-      >
-        <Eye className="h-3.5 w-3.5" />
-        Watch live
-        <ExternalLink className="h-3 w-3" />
-      </a>
-    </div>
-  );
 }
 
 function TaskTimeline({ events, isRunning }: { events: ExecutionEvent[]; isRunning: boolean }) {
@@ -252,41 +230,22 @@ export function ResearchTaskList({ buyerId }: { buyerId: string }) {
     setLoading(false);
   }, [buyerId]);
 
-  // Advance pipeline for active tasks by calling /api/research/process
-  const processActiveTasks = useCallback(async () => {
-    const activeTasks = tasksRef.current.filter((t) => t.status === "running");
-    for (const task of activeTasks) {
-      if (task.output_data?.bu_task_id || task.output_data?.pipeline_stage === "scoring") {
-        try {
-          await fetch("/api/research/process", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ taskId: task.id }),
-          });
-        } catch {
-          // Ignore — fetchTasks will pick up state changes
-        }
-      }
-    }
-  }, []);
-
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
 
-  // Poll: advance pipeline + refresh from DB
-  // Use a stable interval that doesn't depend on `tasks` state
+  // Poll: refresh from DB while tasks are active
+  // Both Python service and API fallback update status directly in Supabase
   useEffect(() => {
     const interval = setInterval(async () => {
       const hasActive = tasksRef.current.some(
         (t) => t.status === "running" || t.status === "queued"
       );
       if (!hasActive) return;
-      await processActiveTasks();
       await fetchTasks();
     }, 4000);
     return () => clearInterval(interval);
-  }, [fetchTasks, processActiveTasks]);
+  }, [fetchTasks]);
 
   if (loading) {
     return (
@@ -303,7 +262,7 @@ export function ResearchTaskList({ buyerId }: { buyerId: string }) {
         <CardContent className="py-12 text-center">
           <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <p className="text-muted-foreground">
-            No research tasks yet. Click &quot;Run Research&quot; to start.
+            No enrichment tasks yet. Add properties first, then click &quot;Enrich &amp; Score&quot; to run.
           </p>
         </CardContent>
       </Card>
@@ -316,7 +275,6 @@ export function ResearchTaskList({ buyerId }: { buyerId: string }) {
         const isExpanded = expandedId === task.id;
         const isActive = task.status === "running" || task.status === "queued";
         const events = task.execution_log ?? [];
-        const liveUrl = task.output_data?.live_url;
         const stageDesc = getStageDescription(task);
 
         return (
@@ -327,7 +285,7 @@ export function ResearchTaskList({ buyerId }: { buyerId: string }) {
                 onClick={() => setExpandedId(isExpanded ? null : task.id)}
               >
                 <div className="flex items-center gap-2">
-                  {events.length > 0 || liveUrl ? (
+                  {events.length > 0 ? (
                     isExpanded ? (
                       <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
                     ) : (
@@ -395,21 +353,14 @@ export function ResearchTaskList({ buyerId }: { buyerId: string }) {
                     </div>
                   )}
 
-                  {/* Live browser preview — keep mounted even after task completes so iframe doesn't vanish */}
-                  {liveUrl && (
-                    <LivePreview key={task.id} liveUrl={liveUrl} />
-                  )}
-
                   {events.length > 0 ? (
                     <TaskTimeline events={events} isRunning={isActive} />
                   ) : isActive ? (
                     <div className="ml-6 space-y-1">
-                      {!liveUrl && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          Starting research pipeline...
-                        </p>
-                      )}
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Starting enrichment pipeline...
+                      </p>
                     </div>
                   ) : null}
                 </div>

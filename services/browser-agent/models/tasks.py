@@ -4,13 +4,13 @@ from enum import Enum
 
 
 class TaskType(str, Enum):
-    zillow_search = "zillow_search"
-    property_detail = "property_detail"
+    # Use enrichment service (lib/enrichment/) or RapidAPI aggregator instead of zillow_search
+    enrichment_pipeline = "enrichment_pipeline"
     cross_reference = "cross_reference"
+    full_research_pipeline = "full_research_pipeline"
     comp_analysis = "comp_analysis"
     listing_monitor = "listing_monitor"
     listing_agent_profile = "listing_agent_profile"
-    full_research_pipeline = "full_research_pipeline"
 
 
 class TaskStatus(str, Enum):
@@ -55,6 +55,5 @@ class PropertyData(BaseModel):
     amenities: list[str] = []
     days_on_market: Optional[int] = None
     listing_status: str = "active"
-    zillow_url: Optional[str] = None
-    zillow_id: Optional[str] = None
+    listing_url: Optional[str] = None
     price_history: list[dict] = []

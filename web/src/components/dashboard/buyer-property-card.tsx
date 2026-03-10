@@ -716,7 +716,7 @@ export function BuyerPropertyCard({
                 )}
               </div>
 
-              {/* Zillow link */}
+              {/* Listing link */}
               {property.zillow_url && (
                 <a
                   href={property.zillow_url}
@@ -725,7 +725,7 @@ export function BuyerPropertyCard({
                   className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
-                  View on Zillow
+                  View Listing
                 </a>
               )}
             </div>
@@ -891,7 +891,7 @@ export function BuyerPropertyCard({
                 className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
-                View on Zillow
+                View Listing
               </a>
             </div>
           )}

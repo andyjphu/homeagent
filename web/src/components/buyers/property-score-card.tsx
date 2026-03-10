@@ -15,9 +15,12 @@ import {
   X,
   Loader2,
   Zap,
+  FlaskConical,
 } from "lucide-react";
 import Link from "next/link";
 import { SendToBuyerToggle } from "./send-to-buyer-toggle";
+import { EnrichmentBadges } from "@/components/enrichment/enrichment-badges";
+import { toast } from "sonner";
 
 interface PropertyScoreCardProps {
   score: {
@@ -39,6 +42,9 @@ interface PropertyScoreCardProps {
       baths: number | null;
       sqft: number | null;
       zillow_url: string | null;
+      walk_score?: number | null;
+      transit_score?: number | null;
+      enrichment_data?: unknown;
     } | null;
   };
   buyerId: string;
@@ -71,6 +77,10 @@ export function PropertyScoreCard({
   const [currentIsAi, setCurrentIsAi] = useState(isAiScored);
 
   const [scoring, setScoring] = useState(false);
+  const [enriching, setEnriching] = useState(false);
+  const [enrichmentData, setEnrichmentData] = useState<unknown>(
+    prop?.enrichment_data ?? null
+  );
 
   const handleSaveOverride = async () => {
     const numScore = Number(editScore);
@@ -126,6 +136,27 @@ export function PropertyScoreCard({
     setScoring(false);
   };
 
+  const handleEnrich = async () => {
+    if (!prop) return;
+    setEnriching(true);
+    try {
+      const res = await fetch(`/api/properties/${prop.id}/enrich`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEnrichmentData(data.enrichment);
+        toast.success("Property enriched with neighborhood data");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || "Enrichment failed");
+      }
+    } catch {
+      toast.error("Enrichment failed — please try again.");
+    }
+    setEnriching(false);
+  };
+
   if (!prop) return null;
 
   return (
@@ -154,6 +185,15 @@ export function PropertyScoreCard({
                 {[prop.city, prop.state, prop.zip].filter(Boolean).join(", ")}
               </p>
             )}
+
+            {/* Enrichment badges */}
+            <div className="mt-1">
+              <EnrichmentBadges
+                enrichmentData={enrichmentData}
+                walkScore={prop.walk_score}
+                transitScore={prop.transit_score}
+              />
+            </div>
 
             {/* Score reasoning */}
             {currentReasoning && !editing && (
@@ -278,6 +318,24 @@ export function PropertyScoreCard({
                     <Loader2 className="h-3 w-3 animate-spin" />
                   ) : (
                     <Zap className="h-3 w-3" />
+                  )}
+                </Button>
+              )}
+
+              {/* Enrich button */}
+              {!editing && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs px-1.5"
+                  onClick={handleEnrich}
+                  disabled={enriching}
+                  title="Enrich with neighborhood data"
+                >
+                  {enriching ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <FlaskConical className="h-3 w-3" />
                   )}
                 </Button>
               )}

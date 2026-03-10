@@ -249,6 +249,7 @@ export interface Database {
           last_monitored_at: string | null;
           monitoring_interval_hours: number;
           scraped_at: string | null;
+          enrichment_data: Json;
           research_task_id: string | null;
           created_at: string;
           updated_at: string;

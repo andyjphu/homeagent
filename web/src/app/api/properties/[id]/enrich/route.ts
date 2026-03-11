@@ -1,7 +1,26 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createActivityEntry } from "@/lib/supabase/activity";
+import { enrichProperty } from "@/lib/enrichment/service";
+import { geocodeAddress } from "@/lib/enrichment/providers/google-maps";
 import type { PropertyEnrichment } from "@/lib/enrichment/types";
+
+// Supabase TS inference returns `never` for complex select queries.
+// The existing codebase works around this with `as any` casts on the client
+// (see web/src/app/api/properties/route.ts). Following the same pattern here.
+
+interface PropertyRow {
+  id: string;
+  address: string;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  enrichment_data: PropertyEnrichment | null;
+  agent_id: string;
+}
 
 export async function POST(
   request: Request,
@@ -9,7 +28,12 @@ export async function POST(
 ) {
   try {
     const { id: propertyId } = await params;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabase = (await createClient()) as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = createAdminClient() as any;
+
+    // Auth check
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -18,6 +42,7 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Get agent
     const { data: agent } = await supabase
       .from("agents")
       .select("id")
@@ -28,97 +53,115 @@ export async function POST(
       return NextResponse.json({ error: "Agent not found" }, { status: 404 });
     }
 
-    // Fetch property
-    const { data: property, error: propError } = await supabase
-      .from("properties")
-      .select("*")
-      .eq("id", propertyId)
-      .eq("agent_id", agent.id)
-      .single();
-
-    if (propError || !property) {
-      return NextResponse.json(
-        { error: "Property not found" },
-        { status: 404 }
-      );
-    }
-
-    // Build enrichment data from available sources
-    const enrichment: PropertyEnrichment = {
-      enriched_at: new Date().toISOString(),
-      enrichment_sources: [],
-    };
-
-    // Migrate existing walk_score / transit_score into enrichment structure
-    if (property.walk_score != null || property.transit_score != null) {
-      enrichment.walk_score = {
-        walk_score: property.walk_score ?? 0,
-        walk_description: walkScoreLabel(property.walk_score ?? 0),
-        transit_score: property.transit_score ?? null,
-        transit_description: property.transit_score != null
-          ? transitScoreLabel(property.transit_score)
-          : null,
-        bike_score: null,
-        bike_description: null,
-        ws_link: `https://www.walkscore.com/score/${encodeURIComponent(property.address)}`,
-      };
-      enrichment.enrichment_sources.push("walkscore");
-    }
-
-    // Migrate existing school_ratings into enrichment structure
-    if (property.school_ratings && typeof property.school_ratings === "object") {
-      const ratings = property.school_ratings as Record<string, { name?: string; rating?: number }>;
-      const schoolEntries = Object.entries(ratings)
-        .filter(([, data]) => data && typeof data === "object")
-        .map(([type, data]) => ({
-          name: data.name || type,
-          type: mapSchoolType(type),
-          grade_range: type,
-          enrollment: null as number | null,
-          distance_miles: null as number | null,
-          rating: data.rating ?? null,
-          source: "greatschools",
-        }));
-
-      if (schoolEntries.length > 0) {
-        enrichment.schools = schoolEntries;
-        enrichment.enrichment_sources.push("schools");
+    // Get property — try with enrichment_data first, fall back without it
+    let prop: PropertyRow | null = null;
+    {
+      const { data, error } = await admin
+        .from("properties")
+        .select("id, address, city, state, zip, latitude, longitude, enrichment_data, agent_id")
+        .eq("id", propertyId)
+        .single();
+      if (!error && data) {
+        prop = data as PropertyRow;
+      } else {
+        // enrichment_data column may not exist yet — query without it
+        const { data: fallback, error: fbErr } = await admin
+          .from("properties")
+          .select("id, address, city, state, zip, latitude, longitude, agent_id")
+          .eq("id", propertyId)
+          .single();
+        if (fbErr || !fallback) {
+          return NextResponse.json({ error: "Property not found" }, { status: 404 });
+        }
+        prop = { ...(fallback as Omit<PropertyRow, "enrichment_data">), enrichment_data: null } as PropertyRow;
       }
     }
 
-    // TODO: Add real API integrations here in future phases:
-    // - FEMA flood zone API → enrichment.flood_zone
-    // - FBI UCR API → enrichment.crime
-    // - FCC broadband API → enrichment.broadband
-    // - Census API → enrichment.demographics
-    // - AirNow API → enrichment.air_quality
-    // - Google Places / Overpass API → enrichment.nearby_amenities
+    if (prop.agent_id !== agent.id) {
+      return NextResponse.json({ error: "Not authorized to enrich this property" }, { status: 403 });
+    }
 
-    // Save enrichment_data to property
-    const { error: updateError } = await supabase
+    // Check if we have recent enrichment data (< 30 days old)
+    if (prop.enrichment_data?.enriched_at) {
+      const enrichedAt = new Date(prop.enrichment_data.enriched_at);
+      const daysSinceEnrichment = (Date.now() - enrichedAt.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysSinceEnrichment < 30) {
+        return NextResponse.json({
+          enrichment: prop.enrichment_data,
+          cached: true,
+          enriched_at: prop.enrichment_data.enriched_at,
+          message: `Using cached enrichment data from ${Math.round(daysSinceEnrichment)} days ago`,
+        });
+      }
+    }
+
+    // Build full address string
+    const fullAddress = [prop.address, prop.city, prop.state, prop.zip]
+      .filter(Boolean)
+      .join(", ");
+
+    if (!fullAddress) {
+      return NextResponse.json(
+        { error: "Property has no address" },
+        { status: 400 }
+      );
+    }
+
+    // Geocode if lat/lng not stored
+    let lat = prop.latitude;
+    let lng = prop.longitude;
+
+    if (!lat || !lng) {
+      const coords = await geocodeAddress(fullAddress);
+      if (coords) {
+        lat = coords.lat;
+        lng = coords.lng;
+
+        // Store geocoded coordinates on the property
+        await admin
+          .from("properties")
+          .update({ latitude: lat, longitude: lng })
+          .eq("id", propertyId);
+      } else {
+        return NextResponse.json(
+          { error: "Could not geocode address. Provide latitude/longitude or check the address." },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Run enrichment
+    const result = await enrichProperty(lat, lng, fullAddress);
+
+    // Store enrichment result on the property
+    const { error: updateError } = await admin
       .from("properties")
-      .update({ enrichment_data: enrichment })
+      .update({ enrichment_data: result.enrichment })
       .eq("id", propertyId);
 
     if (updateError) {
-      console.error("[enrich] Update error:", updateError);
-      return NextResponse.json(
-        { error: "Failed to save enrichment data" },
-        { status: 500 }
-      );
+      console.error("[enrich] Failed to store enrichment:", updateError.message);
     }
 
     // Log activity
     await createActivityEntry(
       agent.id,
       "research_completed",
-      `Enrichment completed: ${property.address}`,
-      `Sources: ${enrichment.enrichment_sources.join(", ") || "none available"}`,
-      { propertyId, sources: enrichment.enrichment_sources },
+      `Property enriched: ${prop.address}`,
+      `Providers: ${result.providerResults.succeeded.length + result.providerResults.cached.length} succeeded, ${result.providerResults.failed.length} failed`,
+      {
+        providers_succeeded: result.providerResults.succeeded,
+        providers_cached: result.providerResults.cached,
+        providers_failed: result.providerResults.failed,
+      },
       { propertyId }
     );
 
-    return NextResponse.json({ enrichment });
+    return NextResponse.json({
+      enrichment: result.enrichment,
+      cached: false,
+      providers: result.providerResults,
+    });
   } catch (err: unknown) {
     console.error("[enrich] Error:", err);
     return NextResponse.json(
@@ -126,32 +169,4 @@ export async function POST(
       { status: 500 }
     );
   }
-}
-
-function walkScoreLabel(score: number): string {
-  if (score >= 90) return "Walker's Paradise";
-  if (score >= 70) return "Very Walkable";
-  if (score >= 50) return "Somewhat Walkable";
-  if (score >= 25) return "Car-Dependent";
-  return "Almost All Errands Require a Car";
-}
-
-function transitScoreLabel(score: number): string {
-  if (score >= 90) return "Rider's Paradise";
-  if (score >= 70) return "Excellent Transit";
-  if (score >= 50) return "Good Transit";
-  if (score >= 25) return "Some Transit";
-  return "Minimal Transit";
-}
-
-function mapSchoolType(
-  type: string
-): "elementary" | "middle" | "high" | "private" | "charter" | "other" {
-  const lower = type.toLowerCase();
-  if (lower.includes("elementary") || lower === "elementary") return "elementary";
-  if (lower.includes("middle") || lower === "middle") return "middle";
-  if (lower.includes("high") || lower === "high") return "high";
-  if (lower.includes("private")) return "private";
-  if (lower.includes("charter")) return "charter";
-  return "other";
 }

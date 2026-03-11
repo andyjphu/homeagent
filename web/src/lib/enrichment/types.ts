@@ -1,132 +1,103 @@
-// PropertyEnrichment — shape of the enrichment_data JSONB column on properties
+// Property enrichment types — all data sourced from free public APIs
 
-export interface WalkScoreData {
+export interface WalkabilityData {
   walk_score: number;
-  walk_description: string;
-  transit_score: number | null;
-  transit_description: string | null;
-  bike_score: number | null;
-  bike_description: string | null;
-  ws_link: string; // Walk Score attribution URL
-}
-
-export interface FloodZoneData {
-  zone: string; // e.g. "X", "AE", "VE", "A", "V"
-  risk_level: "minimal" | "moderate" | "high";
+  transit_score: number;
+  bike_score: number;
   description: string;
-  source: string;
+  ws_link: string;
 }
 
-export interface SchoolEntry {
-  name: string;
-  type: "elementary" | "middle" | "high" | "private" | "charter" | "other";
-  grade_range: string;
-  enrollment: number | null;
-  distance_miles: number | null;
-  rating: number | null;
-  source: string; // 'nces', 'greatschools'
-}
-
-export interface CrimeData {
-  violent_crime_rate: number; // per 100K
-  property_crime_rate: number; // per 100K
-  jurisdiction: string;
-  data_year: number;
-  risk_level: "low" | "medium" | "high";
-  source: string; // 'fbi_ucr'
-}
-
-export interface BroadbandProvider {
-  name: string;
-  max_speed: number; // Mbps download
-  technology: string;
-}
-
-export interface BroadbandData {
-  max_download_speed: number;
-  max_upload_speed: number | null;
-  fiber_available: boolean;
-  providers: BroadbandProvider[];
-  source: string;
+export interface FloodData {
+  zone: string;
+  risk_level: "high" | "very_high" | "moderate" | "low" | "undetermined";
+  insurance_required: boolean;
 }
 
 export interface DemographicsData {
-  median_household_income: number | null;
-  median_home_value: number | null;
-  owner_occupied_pct: number | null;
-  renter_occupied_pct: number | null;
-  population: number | null;
-  source: string;
+  median_income: number;
+  median_home_value: number;
+  population: number;
+  owner_occupied_pct: number;
+  median_age: number;
+}
+
+export interface BroadbandData {
+  fiber_available: boolean;
+  max_download_mbps: number;
+  isp_count: number;
+  providers: string[];
 }
 
 export interface AirQualityData {
   aqi: number;
-  category: string; // "Good", "Moderate", "Unhealthy for Sensitive Groups", etc.
-  source: string;
+  category: string;
 }
 
-export interface AmenityCategory {
-  count: number;
-  nearest_distance_miles: number | null;
+export interface AmenitiesData {
+  grocery_count: number;
+  restaurant_count: number;
+  park_count: number;
+  hospital_count: number;
+  nearest_grocery_miles: number;
 }
 
-export interface NearbyAmenitiesData {
-  grocery: AmenityCategory;
-  restaurants: AmenityCategory;
-  parks: AmenityCategory;
-  source: string;
+export interface SchoolEntry {
+  name: string;
+  type: string;
+  grades: string;
+  distance_miles: number;
+  student_count?: number;
+  student_teacher_ratio?: number;
+}
+
+export interface SchoolsData {
+  nearby: SchoolEntry[];
+  source: "nces" | "greatschools";
+}
+
+export interface CrimeData {
+  violent_crime_rate?: number;
+  property_crime_rate?: number;
+  total_incidents?: number;
+  jurisdiction?: string;
+  data_year?: number;
+  safety_score?: number;
+  source: "fbi_ucr" | "crimeometer";
 }
 
 export interface PropertyEnrichment {
-  walk_score?: WalkScoreData;
-  flood_zone?: FloodZoneData;
-  schools?: SchoolEntry[];
-  crime?: CrimeData;
-  broadband?: BroadbandData;
+  enriched_at: string;
+  walkability?: WalkabilityData;
+  flood?: FloodData;
   demographics?: DemographicsData;
+  broadband?: BroadbandData;
   air_quality?: AirQualityData;
-  nearby_amenities?: NearbyAmenitiesData;
-  enriched_at: string; // ISO timestamp
-  enrichment_sources: string[];
+  amenities?: AmenitiesData;
+  schools?: SchoolsData;
+  crime?: CrimeData;
 }
 
-// Helper to check if any enrichment data is available
-export function hasEnrichmentData(data: unknown): data is PropertyEnrichment {
-  if (!data || typeof data !== "object") return false;
-  const d = data as Record<string, unknown>;
-  return !!(
-    d.walk_score ||
-    d.flood_zone ||
-    d.schools ||
-    d.crime ||
-    d.broadband ||
-    d.demographics ||
-    d.air_quality ||
-    d.nearby_amenities
-  );
+export interface ProviderResult<T = unknown> {
+  provider: string;
+  success: boolean;
+  data?: T;
+  error?: string;
 }
 
-// Derive crime risk level from rate vs national average (~380 violent per 100K)
-export function deriveCrimeRiskLevel(violentRate: number): "low" | "medium" | "high" {
-  if (violentRate < 200) return "low";
-  if (violentRate < 400) return "medium";
-  return "high";
+export interface EnrichmentProvider<T = unknown> {
+  name: string;
+  enabled: boolean;
+  fetch(lat: number, lng: number, address: string): Promise<ProviderResult<T>>;
 }
 
-// Walk score color thresholds
-export function walkScoreColor(score: number): "green" | "yellow" | "red" {
-  if (score >= 70) return "green";
-  if (score >= 50) return "yellow";
-  return "red";
-}
-
-// Flood zone risk classification
-const HIGH_RISK_ZONES = new Set(["A", "AE", "AH", "AO", "AR", "V", "VE"]);
-const MODERATE_RISK_ZONES = new Set(["B", "X500", "0.2 PCT"]);
-
-export function classifyFloodZone(zone: string): "minimal" | "moderate" | "high" {
-  const upper = zone.toUpperCase().trim();
-  if (HIGH_RISK_ZONES.has(upper)) return "high";
-  if (MODERATE_RISK_ZONES.has(upper)) return "moderate";
-  return "minimal";
+export interface EnrichmentCacheRow {
+  id: string;
+  address_normalized: string;
+  lat: number | null;
+  lng: number | null;
+  provider: string;
+  data: Record<string, unknown>;
+  fetched_at: string;
+  expires_at: string;
 }

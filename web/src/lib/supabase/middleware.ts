@@ -41,7 +41,8 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/api/calls/inbound") ||
     request.nextUrl.pathname.startsWith("/api/calls/process") ||
     request.nextUrl.pathname.startsWith("/api/calls/voice-agent/webhook") ||
-    request.nextUrl.pathname.startsWith("/api/properties/search/status");
+    request.nextUrl.pathname.startsWith("/api/properties/search/status") ||
+    request.nextUrl.pathname.startsWith("/api/properties/test-enrich");
 
   if (!user && !isPublicRoute && request.nextUrl.pathname !== "/") {
     const url = request.nextUrl.clone();

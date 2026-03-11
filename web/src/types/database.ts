@@ -251,7 +251,6 @@ export interface Database {
           scraped_at: string | null;
           enrichment_data: Json;
           research_task_id: string | null;
-          enrichment_data: Json;
           created_at: string;
           updated_at: string;
         };

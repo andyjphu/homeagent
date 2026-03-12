@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     .insert({
       agent_id: agentId,
       buyer_id: buyerId,
-      task_type: "enrichment_pipeline",
+      task_type: "full_research_pipeline",
       input_params: {
         intent_profile: intentProfile,
         property_ids: propertyIds,

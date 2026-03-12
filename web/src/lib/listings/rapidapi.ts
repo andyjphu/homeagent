@@ -58,6 +58,8 @@ interface RapidAPIResponse {
 
 /**
  * Detect whether the location string is a zip code, city/state, or address.
+ * Falls back to location autocomplete API if the simple parser can't
+ * determine a clear city/state combo.
  */
 function parseLocation(location: string): {
   city?: string;
@@ -71,7 +73,7 @@ function parseLocation(location: string): {
     return { postal_code: trimmed };
   }
 
-  // "City, ST" pattern
+  // "City, ST" pattern  (e.g., "Dallas, TX")
   const cityStateMatch = trimmed.match(/^(.+),\s*([A-Za-z]{2})$/);
   if (cityStateMatch) {
     return {
@@ -82,6 +84,50 @@ function parseLocation(location: string): {
 
   // Default: treat as city search
   return { city: trimmed };
+}
+
+/**
+ * Use the RapidAPI location autocomplete endpoint to resolve
+ * a freeform location string (e.g. "North Dallas") into a
+ * structured city/state/zip.
+ */
+async function resolveLocation(
+  input: string,
+  apiKey: string
+): Promise<{ city?: string; state_code?: string; postal_code?: string } | null> {
+  try {
+    const url = `https://${RAPIDAPI_HOST}/locations/v2/auto-complete?input=${encodeURIComponent(input)}&limit=1`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "x-rapidapi-key": apiKey,
+        "x-rapidapi-host": RAPIDAPI_HOST,
+      },
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+
+    // The autocomplete returns { autocomplete: [ { _id, area_type, ... } ] }
+    const suggestions = data?.autocomplete ?? [];
+    if (suggestions.length === 0) return null;
+
+    const first = suggestions[0];
+    // Extract city/state from the suggestion
+    const city = first.city;
+    const stateCode = first.state_code;
+    const postalCode = first.postal_code;
+
+    if (city || postalCode) {
+      return {
+        city: city || undefined,
+        state_code: stateCode || undefined,
+        postal_code: postalCode || undefined,
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 function normalizeListing(raw: RapidAPIPropertyResult): NormalizedListing {
@@ -146,14 +192,16 @@ export function getApiUsage(): { calls: number; warning: boolean } {
   };
 }
 
-export async function searchRapidAPI(
+/**
+ * Execute the v3/list search with the given location params.
+ */
+async function executeSearch(
+  locationParams: { city?: string; state_code?: string; postal_code?: string },
   params: ListingSearchParams,
   apiKey: string
 ): Promise<{ listings: NormalizedListing[]; total: number }> {
-  const location = parseLocation(params.location);
   const limit = params.limit || 20;
 
-  // Build request body for the v3 POST endpoint
   const body: Record<string, unknown> = {
     limit,
     offset: params.offset || 0,
@@ -164,9 +212,9 @@ export async function searchRapidAPI(
     },
   };
 
-  if (location.postal_code) body.postal_code = location.postal_code;
-  if (location.city) body.city = location.city;
-  if (location.state_code) body.state_code = location.state_code;
+  if (locationParams.postal_code) body.postal_code = locationParams.postal_code;
+  if (locationParams.city) body.city = locationParams.city;
+  if (locationParams.state_code) body.state_code = locationParams.state_code;
   if (params.price_min || params.price_max) {
     body.list_price = {};
     if (params.price_min) (body.list_price as Record<string, number>).min = params.price_min;
@@ -201,8 +249,6 @@ export async function searchRapidAPI(
   }
 
   const data: RapidAPIResponse = await response.json();
-
-  // v3 response: data.home_search.results
   const rawResults =
     data.data?.home_search?.results || data.properties || [];
   const total =
@@ -210,7 +256,30 @@ export async function searchRapidAPI(
     data.meta?.matching_rows ||
     rawResults.length;
 
-  const listings = rawResults.map(normalizeListing);
+  return { listings: rawResults.map(normalizeListing), total };
+}
 
-  return { listings, total };
+export async function searchRapidAPI(
+  params: ListingSearchParams,
+  apiKey: string
+): Promise<{ listings: NormalizedListing[]; total: number }> {
+  let location = parseLocation(params.location);
+
+  // First attempt with the parsed location
+  let result = await executeSearch(location, params, apiKey);
+
+  // If no results and we only had a city (no state_code, no postal_code),
+  // the user may have typed a neighborhood name (e.g. "North Dallas").
+  // Try the location autocomplete API to resolve it to a proper city/state.
+  if (result.total === 0 && location.city && !location.state_code && !location.postal_code) {
+    console.log(`[listings] No results for "${location.city}", trying autocomplete to resolve location...`);
+    const resolved = await resolveLocation(params.location, apiKey);
+    if (resolved && (resolved.city !== location.city || resolved.state_code || resolved.postal_code)) {
+      console.log(`[listings] Autocomplete resolved to:`, resolved);
+      location = resolved;
+      result = await executeSearch(location, params, apiKey);
+    }
+  }
+
+  return result;
 }

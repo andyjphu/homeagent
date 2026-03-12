@@ -41,10 +41,12 @@ export function ResearchTrigger({
       } else if (data.error) {
         setError(data.error);
       } else {
-        if (data.service === "api_fallback") {
-          setInfo("Using API enrichment (research service unavailable)");
+        const saved = data.task?.output_data?.properties_saved;
+        const found = data.task?.output_data?.properties_found;
+        if (saved) {
+          setInfo(`Found ${found} listings, saved ${saved}. Enriching...`);
         } else {
-          setInfo(`Enriching ${data.propertyCount} properties...`);
+          setInfo("Research started — check the Research tab for progress.");
         }
       }
 

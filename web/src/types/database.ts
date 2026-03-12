@@ -29,8 +29,7 @@ export type CommunicationClassification =
   | "noise"
   | "action_required";
 export type AgentTaskType =
-  | "zillow_search"
-  | "property_detail"
+  | "enrichment_pipeline"
   | "cross_reference"
   | "comp_analysis"
   | "listing_monitor"

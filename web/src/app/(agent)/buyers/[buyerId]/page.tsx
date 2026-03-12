@@ -243,7 +243,7 @@ export default async function BuyerDetailPage({
               <CardContent className="py-12 text-center">
                 <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">
-                  No properties yet. Add one manually or run research to find matches.
+                  No properties yet. Add properties manually or search listings, then use &quot;Enrich &amp; Score&quot; to add neighborhood data and AI scoring.
                 </p>
               </CardContent>
             </Card>

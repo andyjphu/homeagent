@@ -1,7 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from models.tasks import TaskRequest, TaskResponse, TaskStatus
-from agents.zillow_search import ZillowSearchAgent
 from agents.full_pipeline import FullResearchPipeline
 from agents.school_search import SchoolAgent
 from agents.walkscore_search import WalkScoreAgent
@@ -18,10 +17,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Use enrichment service (lib/enrichment/) or RapidAPI aggregator instead of zillow_search
 AGENT_CLASSES = {
-    "zillow_search": ZillowSearchAgent,
-    "property_detail": ZillowSearchAgent,
-    "cross_reference": FullResearchPipeline,  # cross_reference runs school+walkscore+commute
+    "cross_reference": FullResearchPipeline,
+    "enrichment_pipeline": FullResearchPipeline,
     "full_research_pipeline": FullResearchPipeline,
 }
 

@@ -12,6 +12,7 @@ import {
   UserPlus,
   Users,
   Phone,
+  Mail,
   Settings,
   LogOut,
   Briefcase,
@@ -36,6 +37,7 @@ const navItems = [
   { href: "/buyers", label: "Clients", icon: Users },
   { href: "/deals", label: "Deals", icon: Briefcase },
   { href: "/properties", label: "Properties", icon: Building2 },
+  { href: "/email", label: "Email", icon: Mail },
   { href: "/calls", label: "Calls", icon: Phone },
 ];
 

@@ -60,6 +60,7 @@ export async function POST(request: Request) {
       listings: result.listings,
       total: result.total,
       cached: result.cached,
+      source: result.source,
       api_usage: usage,
     });
   } catch (err: unknown) {

@@ -134,13 +134,19 @@ export async function POST(
     const result = await enrichProperty(lat, lng, fullAddress);
 
     // Store enrichment result on the property
+    // Note: enrichment_data column may not exist if migration 00003 hasn't been applied
     const { error: updateError } = await admin
       .from("properties")
       .update({ enrichment_data: result.enrichment })
       .eq("id", propertyId);
 
     if (updateError) {
-      console.error("[enrich] Failed to store enrichment:", updateError.message);
+      const isMissingColumn = updateError.message?.includes("does not exist");
+      if (isMissingColumn) {
+        console.warn("[enrich] enrichment_data column missing — run migration 00003. Data returned but not persisted.");
+      } else {
+        console.error("[enrich] Failed to store enrichment:", updateError.message);
+      }
     }
 
     // Log activity
@@ -157,10 +163,15 @@ export async function POST(
       { propertyId }
     );
 
+    const migrationNeeded = updateError?.message?.includes("does not exist") ?? false;
+
     return NextResponse.json({
       enrichment: result.enrichment,
       cached: false,
       providers: result.providerResults,
+      ...(migrationNeeded && {
+        warning: "Enrichment data was fetched but could not be saved. The enrichment_data column is missing — run database migration 00003.",
+      }),
     });
   } catch (err: unknown) {
     console.error("[enrich] Error:", err);

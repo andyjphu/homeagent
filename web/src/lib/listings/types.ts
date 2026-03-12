@@ -39,4 +39,5 @@ export interface ListingSearchResult {
   listings: NormalizedListing[];
   total: number;
   cached: boolean;
+  source: "live" | "mock";
 }

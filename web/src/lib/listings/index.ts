@@ -31,12 +31,14 @@ export async function searchListings(
 
   let listings;
   let total;
+  let source: "live" | "mock" = "live";
 
   if (useMock) {
     // Use mock data directly
     const mockResult = searchMock(params);
     listings = mockResult.listings;
     total = mockResult.total;
+    source = "mock";
     console.log("[listings] Using mock data provider");
   } else {
     try {
@@ -55,6 +57,7 @@ export async function searchListings(
         const mockResult = searchMock(params);
         listings = mockResult.listings;
         total = mockResult.total;
+        source = "mock";
       } else {
         throw err;
       }
@@ -65,6 +68,7 @@ export async function searchListings(
     listings,
     total,
     cached: false,
+    source,
   };
 
   // Cache the result

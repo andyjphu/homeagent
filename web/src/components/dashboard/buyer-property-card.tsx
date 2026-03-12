@@ -238,6 +238,34 @@ export function BuyerPropertyCard({
       ? (property.commute_data as Record<string, any>)
       : null;
 
+  // Enrichment data from API enrichment service
+  const enrichment =
+    property.enrichment_data &&
+    typeof property.enrichment_data === "object" &&
+    !Array.isArray(property.enrichment_data)
+      ? (property.enrichment_data as Record<string, any>)
+      : null;
+
+  // Derive walkability (prefer enrichment data, fall back to legacy columns)
+  const walkScore = enrichment?.walkability?.walk_score ?? property.walk_score;
+  const transitScore = enrichment?.walkability?.transit_score ?? property.transit_score;
+  const bikeScore = enrichment?.walkability?.bike_score ?? null;
+
+  // Flood data from enrichment
+  const floodData = enrichment?.flood ?? null;
+
+  // Schools from enrichment (array of nearby schools)
+  const enrichmentSchools: any[] = enrichment?.schools?.nearby ?? [];
+
+  // Air quality
+  const airQuality = enrichment?.air_quality ?? null;
+
+  // Demographics
+  const demographics = enrichment?.demographics ?? null;
+
+  // Nearby amenities
+  const nearbyAmenities = enrichment?.amenities ?? null;
+
   return (
     <>
       <Card
@@ -393,16 +421,49 @@ export function BuyerPropertyCard({
                 {property.listing_status}
               </Badge>
             )}
-            {property.walk_score != null && (
+            {walkScore != null && (
               <Badge variant="outline" className="text-xs">
                 <Footprints className="h-3 w-3 mr-1" />
-                Walk: {property.walk_score}
+                Walk: {walkScore}
               </Badge>
             )}
-            {property.transit_score != null && (
+            {transitScore != null && (
               <Badge variant="outline" className="text-xs">
                 <Train className="h-3 w-3 mr-1" />
-                Transit: {property.transit_score}
+                Transit: {transitScore}
+              </Badge>
+            )}
+            {floodData && (
+              <Badge
+                variant="outline"
+                className={`text-xs ${
+                  floodData.risk_level === "high"
+                    ? "border-red-300 text-red-700"
+                    : floodData.risk_level === "moderate"
+                      ? "border-amber-300 text-amber-700"
+                      : ""
+                }`}
+              >
+                Flood: {floodData.risk_level ?? floodData.zone}
+              </Badge>
+            )}
+            {enrichmentSchools.length > 0 && (
+              <Badge variant="outline" className="text-xs">
+                {enrichmentSchools.length} school{enrichmentSchools.length !== 1 ? "s" : ""} nearby
+              </Badge>
+            )}
+            {airQuality && (
+              <Badge
+                variant="outline"
+                className={`text-xs ${
+                  airQuality.aqi > 100
+                    ? "border-red-300 text-red-700"
+                    : airQuality.aqi > 50
+                      ? "border-amber-300 text-amber-700"
+                      : ""
+                }`}
+              >
+                AQI: {airQuality.aqi}
               </Badge>
             )}
             {property.days_on_market != null && (
@@ -528,31 +589,52 @@ export function BuyerPropertyCard({
               )}
 
               {/* Walk / Transit scores */}
-              {(property.walk_score != null ||
-                property.transit_score != null) && (
+              {(walkScore != null || transitScore != null || bikeScore != null) && (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
                     Walkability & Transit
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {property.walk_score != null && (
-                      <ScoreBar
-                        label="Walk Score"
-                        value={property.walk_score}
-                      />
+                    {walkScore != null && (
+                      <ScoreBar label="Walk Score" value={walkScore} />
                     )}
-                    {property.transit_score != null && (
-                      <ScoreBar
-                        label="Transit Score"
-                        value={property.transit_score}
-                      />
+                    {transitScore != null && (
+                      <ScoreBar label="Transit Score" value={transitScore} />
+                    )}
+                    {bikeScore != null && (
+                      <ScoreBar label="Bike Score" value={bikeScore} />
                     )}
                   </div>
                 </div>
               )}
 
-              {/* School ratings */}
-              {Object.keys(schoolRatings).length > 0 && (
+              {/* Schools — prefer enrichment data, fall back to legacy schoolRatings */}
+              {enrichmentSchools.length > 0 ? (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                    Nearby Schools
+                  </p>
+                  <div className="space-y-1.5">
+                    {enrichmentSchools.slice(0, 5).map((school: any, i: number) => (
+                      <div key={i} className="flex items-center gap-2 text-sm">
+                        {school.rating != null && (
+                          <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${schoolDotColor(school.rating)}`} />
+                        )}
+                        <span className="font-medium truncate">{school.name}</span>
+                        {school.type && (
+                          <span className="text-muted-foreground capitalize text-xs">{school.type}</span>
+                        )}
+                        {school.rating != null && (
+                          <span className="text-muted-foreground text-xs">({school.rating}/10)</span>
+                        )}
+                        {school.distance_mi != null && (
+                          <span className="text-muted-foreground text-xs ml-auto">{school.distance_mi} mi</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : Object.keys(schoolRatings).length > 0 ? (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
                     School Ratings
@@ -561,26 +643,91 @@ export function BuyerPropertyCard({
                     {Object.entries(schoolRatings).map(
                       ([type, data]: [string, any]) =>
                         data?.rating != null ? (
-                          <div
-                            key={type}
-                            className="flex items-center gap-2 text-sm"
-                          >
-                            <div
-                              className={`h-2.5 w-2.5 rounded-full shrink-0 ${schoolDotColor(
-                                data.rating
-                              )}`}
-                            />
-                            <span className="capitalize text-muted-foreground">
-                              {type}:
-                            </span>
-                            <span className="font-medium">
-                              {data.name}
-                            </span>
-                            <span className="text-muted-foreground">
-                              ({data.rating}/10)
-                            </span>
+                          <div key={type} className="flex items-center gap-2 text-sm">
+                            <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${schoolDotColor(data.rating)}`} />
+                            <span className="capitalize text-muted-foreground">{type}:</span>
+                            <span className="font-medium">{data.name}</span>
+                            <span className="text-muted-foreground">({data.rating}/10)</span>
                           </div>
                         ) : null
+                    )}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Flood risk */}
+              {floodData && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                    Flood Risk
+                  </p>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Badge
+                      variant="outline"
+                      className={`text-xs ${
+                        floodData.risk_level === "high"
+                          ? "border-red-300 text-red-700 bg-red-50"
+                          : floodData.risk_level === "moderate"
+                            ? "border-amber-300 text-amber-700 bg-amber-50"
+                            : "border-green-300 text-green-700 bg-green-50"
+                      }`}
+                    >
+                      {floodData.risk_level ?? "unknown"} risk
+                    </Badge>
+                    {floodData.zone && (
+                      <span className="text-muted-foreground">Zone {floodData.zone}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Demographics */}
+              {demographics && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                    Neighborhood
+                  </p>
+                  <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+                    {demographics.median_income != null && (
+                      <div>
+                        <span className="text-muted-foreground">Median Income: </span>
+                        <span className="font-medium">${demographics.median_income.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {demographics.owner_occupied_pct != null && (
+                      <div>
+                        <span className="text-muted-foreground">Owner-Occupied: </span>
+                        <span className="font-medium">{demographics.owner_occupied_pct}%</span>
+                      </div>
+                    )}
+                    {demographics.median_home_value != null && (
+                      <div>
+                        <span className="text-muted-foreground">Median Home: </span>
+                        <span className="font-medium">${demographics.median_home_value.toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Nearby amenities from enrichment */}
+              {nearbyAmenities && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                    Nearby Amenities
+                  </p>
+                  <div className="flex flex-wrap gap-2 text-sm">
+                    {nearbyAmenities.grocery_count > 0 && (
+                      <span>{nearbyAmenities.grocery_count} groceries</span>
+                    )}
+                    {nearbyAmenities.park_count > 0 && (
+                      <span>{nearbyAmenities.park_count} parks</span>
+                    )}
+                    {nearbyAmenities.restaurant_count > 0 && (
+                      <span>{nearbyAmenities.restaurant_count} restaurants</span>
+                    )}
+                    {nearbyAmenities.hospital_count > 0 && (
+                      <span>{nearbyAmenities.hospital_count} hospitals</span>
                     )}
                   </div>
                 </div>
@@ -716,7 +863,7 @@ export function BuyerPropertyCard({
                 )}
               </div>
 
-              {/* Zillow link */}
+              {/* Listing link */}
               {property.zillow_url && (
                 <a
                   href={property.zillow_url}
@@ -725,7 +872,7 @@ export function BuyerPropertyCard({
                   className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
-                  View on Zillow
+                  View listing
                 </a>
               )}
             </div>
@@ -891,7 +1038,7 @@ export function BuyerPropertyCard({
                 className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
-                View on Zillow
+                View listing
               </a>
             </div>
           )}

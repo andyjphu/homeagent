@@ -71,6 +71,7 @@ export function PropertyScoreCard({
   const [currentIsAi, setCurrentIsAi] = useState(isAiScored);
 
   const [scoring, setScoring] = useState(false);
+  const [scoreError, setScoreError] = useState<string | null>(null);
 
   const handleSaveOverride = async () => {
     const numScore = Number(editScore);
@@ -102,6 +103,7 @@ export function PropertyScoreCard({
   const handleRunScoring = async () => {
     if (!prop) return;
     setScoring(true);
+    setScoreError(null);
     try {
       const res = await fetch("/api/properties/score", {
         method: "POST",
@@ -119,9 +121,14 @@ export function PropertyScoreCard({
           setCurrentReasoning(newScore.score_reasoning);
           setCurrentIsAi(true);
         }
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setScoreError(
+          data.error || (res.status === 503 ? "AI not configured — set up API keys in Settings" : "Scoring failed")
+        );
       }
     } catch {
-      // silent
+      setScoreError("Failed to connect to scoring service");
     }
     setScoring(false);
   };
@@ -174,6 +181,13 @@ export function PropertyScoreCard({
             {score.agent_notes && (
               <p className="text-xs mt-1 text-blue-600 dark:text-blue-400">
                 Agent note: {score.agent_notes}
+              </p>
+            )}
+
+            {/* Scoring error */}
+            {scoreError && (
+              <p className="text-xs mt-1 text-destructive">
+                {scoreError}
               </p>
             )}
 

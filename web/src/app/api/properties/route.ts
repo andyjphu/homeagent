@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createActivityEntry } from "@/lib/supabase/activity";
+import { enrichProperty } from "@/lib/enrichment/service";
+import { geocodeAddress } from "@/lib/enrichment/providers/google-maps";
+import { isLLMAvailable, llmJSON } from "@/lib/llm/router";
+import { PROPERTY_SCORING_PROMPT } from "@/lib/llm/prompts/property-scoring";
+import type { AgentPreferences } from "@/types/database";
+import { DEFAULT_PREFERENCES } from "@/types/database";
 
 export async function POST(request: Request) {
   try {
@@ -15,13 +22,18 @@ export async function POST(request: Request) {
 
     const { data: agent } = await supabase
       .from("agents")
-      .select("id")
+      .select("id, notification_preferences")
       .eq("user_id", user.id)
       .single();
 
     if (!agent) {
       return NextResponse.json({ error: "Agent not found" }, { status: 404 });
     }
+
+    const prefs: AgentPreferences = {
+      ...DEFAULT_PREFERENCES,
+      ...((agent.notification_preferences as Partial<AgentPreferences>) || {}),
+    };
 
     const body = await request.json();
     const {
@@ -125,6 +137,20 @@ export async function POST(request: Request) {
       );
     }
 
+    // Fire-and-forget: auto-enrich if preference is on
+    if (prefs.auto_enrich_properties) {
+      autoEnrichProperty(property.id, address, city, state, zip, latitude, longitude).catch((err) => {
+        console.error("[auto-enrich] Error:", err);
+      });
+    }
+
+    // Fire-and-forget: auto-score if preference is on, LLM available, and buyer has intent profile
+    if (prefs.ai_property_scoring && isLLMAvailable("property_scoring")) {
+      autoScoreProperty(property.id, buyerIds).catch((err) => {
+        console.error("[auto-score] Error:", err);
+      });
+    }
+
     return NextResponse.json({ property });
   } catch (err: unknown) {
     console.error("[properties] Error:", err);
@@ -132,6 +158,127 @@ export async function POST(request: Request) {
       { error: "Failed to create property" },
       { status: 500 }
     );
+  }
+}
+
+/**
+ * Auto-enrich a property in the background.
+ * Geocodes if needed, then runs enrichment providers.
+ */
+async function autoEnrichProperty(
+  propertyId: string,
+  address: string,
+  city?: string,
+  state?: string,
+  zip?: string,
+  lat?: number | null,
+  lng?: number | null
+) {
+  const admin = createAdminClient() as any;
+  const fullAddress = [address, city, state, zip].filter(Boolean).join(", ");
+
+  // Geocode if needed
+  if (!lat || !lng) {
+    const coords = await geocodeAddress(fullAddress);
+    if (coords) {
+      lat = coords.lat;
+      lng = coords.lng;
+      await admin
+        .from("properties")
+        .update({ latitude: lat, longitude: lng })
+        .eq("id", propertyId);
+    } else {
+      return; // Can't enrich without coordinates
+    }
+  }
+
+  const result = await enrichProperty(lat, lng, fullAddress);
+
+  const { error: updateErr } = await admin
+    .from("properties")
+    .update({ enrichment_data: result.enrichment })
+    .eq("id", propertyId);
+
+  if (updateErr) {
+    if (updateErr.message?.includes("does not exist")) {
+      console.warn("[auto-enrich] enrichment_data column missing — run migration 00003");
+    } else {
+      console.error("[auto-enrich] Failed to store enrichment:", updateErr.message);
+    }
+  }
+}
+
+/**
+ * Auto-score a property against each linked buyer in the background.
+ */
+async function autoScoreProperty(propertyId: string, buyerIds: string[]) {
+  const admin = createAdminClient() as any;
+
+  // Get property
+  const { data: property } = await admin
+    .from("properties")
+    .select("*")
+    .eq("id", propertyId)
+    .single();
+
+  if (!property) return;
+
+  for (const buyerId of buyerIds) {
+    // Get buyer intent profile
+    const { data: buyer } = await admin
+      .from("buyers")
+      .select("intent_profile")
+      .eq("id", buyerId)
+      .single();
+
+    if (!buyer?.intent_profile || Object.keys(buyer.intent_profile).length === 0) {
+      continue;
+    }
+
+    const enrichment = property.enrichment_data ?? {};
+    const context = `
+BUYER INTENT PROFILE:
+${JSON.stringify(buyer.intent_profile, null, 2)}
+
+PROPERTY:
+Address: ${property.address}
+Price: $${property.listing_price?.toLocaleString() ?? "N/A"}
+Beds: ${property.beds ?? "N/A"}
+Baths: ${property.baths ?? "N/A"}
+Sqft: ${property.sqft?.toLocaleString() ?? "N/A"}
+Year Built: ${property.year_built ?? "N/A"}
+HOA: $${property.hoa_monthly ?? 0}/month
+Days on Market: ${property.days_on_market ?? "N/A"}
+Walk Score: ${enrichment.walkability?.walk_score ?? property.walk_score ?? "N/A"}
+Transit Score: ${enrichment.walkability?.transit_score ?? property.transit_score ?? "N/A"}
+Schools: ${JSON.stringify(enrichment.schools?.nearby?.slice(0, 3) ?? property.school_ratings ?? {})}
+Description: ${property.listing_description ?? "N/A"}
+`;
+
+    try {
+      const result = await llmJSON<{
+        match_score: number;
+        score_reasoning: string;
+        score_breakdown: any;
+      }>("property_scoring", PROPERTY_SCORING_PROMPT, context);
+
+      if (typeof result.match_score !== "number") continue;
+
+      await admin
+        .from("buyer_property_scores")
+        .upsert(
+          {
+            buyer_id: buyerId,
+            property_id: propertyId,
+            match_score: result.match_score,
+            score_reasoning: result.score_reasoning ?? "",
+            score_breakdown: { ...result.score_breakdown, source: "ai" },
+          },
+          { onConflict: "buyer_id,property_id" }
+        );
+    } catch (err) {
+      console.error(`[auto-score] Failed to score property ${propertyId} for buyer ${buyerId}:`, err);
+    }
   }
 }
 

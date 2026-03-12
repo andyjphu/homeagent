@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -13,12 +14,15 @@ import {
   Bell,
   Shield,
   Zap,
+  AlertTriangle,
+  Database,
 } from "lucide-react";
 import { GmailConnectButton } from "@/components/email/gmail-connect-button";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { PreferencesForm } from "@/components/settings/preferences-form";
 import { SignOutButton } from "@/components/settings/sign-out-button";
 import { VoiceAiStatus } from "@/components/settings/voice-ai-status";
+import { MigrationBanner } from "@/components/settings/migration-banner";
 import type { AgentPreferences } from "@/types/database";
 import { DEFAULT_PREFERENCES } from "@/types/database";
 
@@ -62,6 +66,28 @@ export default async function SettingsPage() {
 
   if (!agent) return null;
 
+  // Check for pending database migrations
+  const admin = createAdminClient() as any;
+  const pendingMigrations: string[] = [];
+
+  // Check enrichment_data column
+  const { error: enrichColErr } = await admin
+    .from("properties")
+    .select("enrichment_data")
+    .limit(0);
+  if (enrichColErr?.message?.includes("does not exist")) {
+    pendingMigrations.push("enrichment_data");
+  }
+
+  // Check enrichment_cache table
+  const { error: cacheTableErr } = await admin
+    .from("enrichment_cache")
+    .select("id")
+    .limit(0);
+  if (cacheTableErr?.message?.includes("enrichment_cache")) {
+    pendingMigrations.push("enrichment_cache");
+  }
+
   // Check environment variables server-side
   const envStatus = {
     // Voice AI
@@ -71,15 +97,14 @@ export default async function SettingsPage() {
     walkScore: !!process.env.WALKSCORE_API_KEY,
     googleMaps: !!process.env.GOOGLE_MAPS_API_KEY,
     census: !!process.env.CENSUS_API_KEY,
-    greatSchools: !!process.env.GREATSCHOOLS_API_KEY,
-    crimeOMeter: !!process.env.CRIMEOMETER_API_KEY,
+    airNow: !!process.env.AIRNOW_API_KEY,
     // LLM
     cerebras: !!process.env.CEREBRAS_API_KEY,
     gemini: !!process.env.GEMINI_API_KEY,
   };
 
   const voiceAiConnected = envStatus.vapiKey || envStatus.retellKey;
-  const anyEnrichmentConfigured = envStatus.walkScore || envStatus.googleMaps || envStatus.census;
+  const anyEnrichmentConfigured = envStatus.walkScore || envStatus.googleMaps || envStatus.census || envStatus.airNow;
   const anyLlmConfigured = envStatus.cerebras || envStatus.gemini;
 
   const preferences: AgentPreferences = {
@@ -100,6 +125,14 @@ export default async function SettingsPage() {
   return (
     <div className="max-w-2xl space-y-6">
       <h1 className="text-2xl font-bold">Settings</h1>
+
+      {/* Database Migration Banner */}
+      {pendingMigrations.length > 0 && (
+        <MigrationBanner
+          pendingMigrations={pendingMigrations}
+          projectRef={process.env.NEXT_PUBLIC_SUPABASE_URL?.replace("https://", "").replace(".supabase.co", "")}
+        />
+      )}
 
       {/* 1. Agent Profile */}
       <Card>
@@ -203,7 +236,7 @@ export default async function SettingsPage() {
               <StatusBadge connected={envStatus.walkScore} />
             </div>
             <div className="flex items-center justify-between py-1">
-              <span>Google Maps</span>
+              <span>Google Maps (Amenities)</span>
               <StatusBadge connected={envStatus.googleMaps} />
             </div>
             <div className="flex items-center justify-between py-1">
@@ -211,20 +244,16 @@ export default async function SettingsPage() {
               <AlwaysAvailableBadge />
             </div>
             <div className="flex items-center justify-between py-1">
+              <span>NCES Schools</span>
+              <AlwaysAvailableBadge />
+            </div>
+            <div className="flex items-center justify-between py-1">
               <span>Census Demographics</span>
               <StatusBadge connected={envStatus.census} />
             </div>
             <div className="flex items-center justify-between py-1">
-              <span>FCC Broadband</span>
-              <AlwaysAvailableBadge />
-            </div>
-            <div className="flex items-center justify-between py-1">
-              <span>GreatSchools</span>
-              <StatusBadge connected={envStatus.greatSchools} />
-            </div>
-            <div className="flex items-center justify-between py-1">
-              <span>CrimeOMeter</span>
-              <StatusBadge connected={envStatus.crimeOMeter} />
+              <span>AirNow (Air Quality)</span>
+              <StatusBadge connected={envStatus.airNow} />
             </div>
           </div>
 

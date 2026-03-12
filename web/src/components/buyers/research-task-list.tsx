@@ -37,8 +37,9 @@ interface Task {
 
 // Human-readable stage descriptions
 const STAGE_LABELS: Record<string, string> = {
-  zillow_search: "Searching Zillow for properties...",
-  enrichment: "Enriching properties (schools, walkability, commute)...",
+  searching: "Searching for matching listings...",
+  zillow_search: "Searching for properties...",
+  enrichment: "Enriching properties (schools, flood risk, walkability)...",
   scoring: "Scoring properties against buyer criteria...",
   complete: "Research complete",
 };
@@ -256,7 +257,8 @@ export function ResearchTaskList({ buyerId }: { buyerId: string }) {
   const processActiveTasks = useCallback(async () => {
     const activeTasks = tasksRef.current.filter((t) => t.status === "running");
     for (const task of activeTasks) {
-      if (task.output_data?.bu_task_id || task.output_data?.pipeline_stage === "scoring") {
+      const stage = task.output_data?.pipeline_stage;
+      if (stage === "enrichment" || stage === "scoring" || task.output_data?.bu_task_id) {
         try {
           await fetch("/api/research/process", {
             method: "POST",
@@ -388,10 +390,18 @@ export function ResearchTaskList({ buyerId }: { buyerId: string }) {
                   )}
 
                   {task.output_data && task.status === "completed" && (
-                    <div className="flex gap-4 text-xs text-muted-foreground bg-muted rounded px-2 py-1.5 mb-2">
-                      <span>{task.output_data.properties_found ?? 0} properties found</span>
-                      <span>{task.output_data.properties_enriched ?? 0} enriched</span>
-                      <span>{task.output_data.properties_scored ?? 0} scored</span>
+                    <div className="space-y-1.5 mb-2">
+                      {task.output_data.listing_source === "mock" && (
+                        <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+                          <AlertTriangle className="h-3 w-3 shrink-0" />
+                          Results are sample data — listing API not connected
+                        </div>
+                      )}
+                      <div className="flex gap-4 text-xs text-muted-foreground bg-muted rounded px-2 py-1.5">
+                        <span>{task.output_data.properties_found ?? 0} properties found</span>
+                        <span>{task.output_data.properties_enriched ?? 0} enriched</span>
+                        <span>{task.output_data.properties_scored ?? 0} scored</span>
+                      </div>
                     </div>
                   )}
 

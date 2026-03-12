@@ -1,4 +1,5 @@
 import type { EnrichmentProvider, ProviderResult, AmenitiesData } from "../types";
+import { geocodeWithNominatim } from "./nominatim";
 
 const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
@@ -119,36 +120,35 @@ async function fetchNearby(
 }
 
 /**
- * Geocode an address to lat/lng using Google Maps Geocoding API.
- * Exported separately since the orchestrator needs this to geocode addresses
- * when lat/lng are not stored on the property.
+ * Geocode an address to lat/lng.
+ * Tries Google Maps first (if API key configured), then falls back to
+ * free OpenStreetMap Nominatim so enrichment works even without paid keys.
  */
 export async function geocodeAddress(
   address: string
 ): Promise<{ lat: number; lng: number } | null> {
+  // Try Google Maps first if key is available
   const key = process.env.GOOGLE_MAPS_API_KEY;
-  if (!key) return null;
+  if (key) {
+    try {
+      const params = new URLSearchParams({ address, key });
+      const res = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?${params}`,
+        { signal: AbortSignal.timeout(10000) }
+      );
 
-  try {
-    const params = new URLSearchParams({
-      address,
-      key,
-    });
-
-    const res = await fetch(
-      `https://maps.googleapis.com/maps/api/geocode/json?${params}`,
-      { signal: AbortSignal.timeout(10000) }
-    );
-
-    if (!res.ok) return null;
-
-    const json = await res.json();
-
-    if (json.status !== "OK" || !json.results?.[0]) return null;
-
-    const loc = json.results[0].geometry.location;
-    return { lat: loc.lat, lng: loc.lng };
-  } catch {
-    return null;
+      if (res.ok) {
+        const json = await res.json();
+        if (json.status === "OK" && json.results?.[0]) {
+          const loc = json.results[0].geometry.location;
+          return { lat: loc.lat, lng: loc.lng };
+        }
+      }
+    } catch {
+      // Fall through to Nominatim
+    }
   }
+
+  // Fallback: free Nominatim geocoding (no API key required)
+  return geocodeWithNominatim(address);
 }

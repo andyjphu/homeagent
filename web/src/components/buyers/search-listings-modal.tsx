@@ -83,6 +83,7 @@ export function SearchListingsModal({
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [apiWarning, setApiWarning] = useState(false);
+  const [isMockData, setIsMockData] = useState(false);
 
   // Import state: track which listings are being imported / have been imported
   const [importing, setImporting] = useState<Set<string>>(new Set());
@@ -157,6 +158,7 @@ export function SearchListingsModal({
       setTotal(data.total || 0);
       setCached(data.cached || false);
       setApiWarning(data.api_usage?.warning || false);
+      setIsMockData(data.source === "mock");
       setSearched(true);
     } catch {
       setError("Search failed — please try again later.");
@@ -307,6 +309,19 @@ export function SearchListingsModal({
             <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded px-3 py-2">
               <AlertTriangle className="h-3 w-3 shrink-0" />
               Approaching API call limit. Use searches sparingly.
+            </div>
+          )}
+
+          {isMockData && searched && (
+            <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium">Showing sample data — not real listings</p>
+                <p className="text-amber-600 mt-0.5">
+                  The listing API is not connected. These are mock listings for demo purposes only.
+                  Configure <code className="bg-amber-100 px-1 rounded text-[10px]">RAPIDAPI_KEY</code> in your environment for real results.
+                </p>
+              </div>
             </div>
           )}
 

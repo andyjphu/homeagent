@@ -69,6 +69,7 @@ export function CallList({ calls }: { calls: CallRecord[] }) {
           const buyerTemp = analysis.buyer_temperature as string | undefined;
 
           const isProcessing = status === "processing" || status === "transcribed";
+          const isAwaitingTranscript = status === "awaiting_manual_transcript";
 
           return (
             <Card
@@ -108,6 +109,11 @@ export function CallList({ calls }: { calls: CallRecord[] }) {
                         <Badge variant="outline" className="text-xs">
                           <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                           Processing
+                        </Badge>
+                      )}
+                      {isAwaitingTranscript && (
+                        <Badge variant="outline" className="text-xs border-amber-300 text-amber-700">
+                          Needs transcript
                         </Badge>
                       )}
                       {urgency === "high" && (

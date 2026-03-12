@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Phone,
   Clock,
@@ -18,7 +19,10 @@ import {
   FileText,
   Loader2,
   Bot,
+  ClipboardPaste,
+  Send,
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface CallAnalysis {
   status?: string;
@@ -84,6 +88,10 @@ export function CallDetailView({
   const router = useRouter();
   const [showTranscript, setShowTranscript] = useState(false);
 
+  const [manualTranscript, setManualTranscript] = useState("");
+  const [submittingTranscript, setSubmittingTranscript] = useState(false);
+  const [transcriptSubmitted, setTranscriptSubmitted] = useState(false);
+
   const callerName =
     extraction?.caller_name ||
     analysis.caller_name ||
@@ -93,6 +101,30 @@ export function CallDetailView({
 
   const summary = extraction?.summary || analysis.summary;
   const isVoiceAgent = analysis.source === "ai_voice_agent";
+  const isAwaitingTranscript =
+    analysis.status === "awaiting_manual_transcript" && !call.raw_content;
+
+  async function submitTranscript() {
+    if (!manualTranscript.trim()) return;
+    setSubmittingTranscript(true);
+    try {
+      const res = await fetch(`/api/calls/${call.id}/transcript`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript: manualTranscript.trim() }),
+      });
+      if (res.ok) {
+        setTranscriptSubmitted(true);
+        toast.success("Transcript submitted — processing call...");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || "Failed to submit transcript");
+      }
+    } catch {
+      toast.error("Network error — please try again");
+    }
+    setSubmittingTranscript(false);
+  }
 
   return (
     <div className="space-y-4">
@@ -190,6 +222,51 @@ export function CallDetailView({
               <source src={call.recording_url} />
               Your browser does not support audio playback.
             </audio>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Awaiting transcript — paste area */}
+      {isAwaitingTranscript && !transcriptSubmitted && (
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <ClipboardPaste className="h-4 w-4 text-amber-600" />
+              <p className="text-sm font-medium text-amber-800">Transcript needed</p>
+            </div>
+            <p className="text-xs text-amber-700">
+              Automatic transcription is unavailable. Paste the call transcript below to analyze this call and extract lead information.
+            </p>
+            <Textarea
+              placeholder="Paste the call transcript here..."
+              value={manualTranscript}
+              onChange={(e) => setManualTranscript(e.target.value)}
+              rows={6}
+              className="bg-white"
+            />
+            <Button
+              size="sm"
+              onClick={submitTranscript}
+              disabled={submittingTranscript || !manualTranscript.trim()}
+            >
+              {submittingTranscript ? (
+                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+              ) : (
+                <Send className="h-3 w-3 mr-1" />
+              )}
+              Submit & Analyze
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {transcriptSubmitted && (
+        <Card className="border-green-200 bg-green-50/50">
+          <CardContent className="p-3 flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <p className="text-sm text-green-800">
+              Transcript submitted. Close and reopen to see results once processing completes.
+            </p>
           </CardContent>
         </Card>
       )}

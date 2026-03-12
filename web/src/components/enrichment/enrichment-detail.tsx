@@ -1,8 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { PropertyEnrichment } from "@/lib/enrichment/types";
-import { hasEnrichmentData } from "@/lib/enrichment/types";
+import { type PropertyEnrichment, hasEnrichmentData } from "@/lib/enrichment/types";
 import {
   Footprints,
   Droplets,

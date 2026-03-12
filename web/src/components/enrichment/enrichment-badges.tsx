@@ -8,8 +8,7 @@ import {
   ShieldAlert,
   Wifi,
 } from "lucide-react";
-import type { PropertyEnrichment } from "@/lib/enrichment/types";
-import { hasEnrichmentData, walkScoreColor } from "@/lib/enrichment/types";
+import { type PropertyEnrichment, hasEnrichmentData, walkScoreColor } from "@/lib/enrichment/types";
 
 interface EnrichmentBadgesProps {
   enrichmentData: unknown;

@@ -207,6 +207,12 @@ export function SearchListingsModal({
         setImportErrors((prev) => new Map(prev).set(key, data.error || "Import failed"));
       } else {
         setImported((prev) => new Set(prev).add(key));
+        // Auto-enrich the imported property
+        if (data.property?.id) {
+          fetch(`/api/properties/${data.property.id}/enrich`, {
+            method: "POST",
+          }).catch(() => {});
+        }
         // Notify the page that properties changed
         window.dispatchEvent(new Event("properties-updated"));
       }

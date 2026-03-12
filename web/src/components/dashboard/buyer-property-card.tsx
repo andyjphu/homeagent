@@ -30,6 +30,8 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { EnrichmentBadges } from "@/components/enrichment/enrichment-badges";
+import { EnrichmentDetail } from "@/components/enrichment/enrichment-detail";
 
 function ScoreBar({
   label,
@@ -393,18 +395,6 @@ export function BuyerPropertyCard({
                 {property.listing_status}
               </Badge>
             )}
-            {property.walk_score != null && (
-              <Badge variant="outline" className="text-xs">
-                <Footprints className="h-3 w-3 mr-1" />
-                Walk: {property.walk_score}
-              </Badge>
-            )}
-            {property.transit_score != null && (
-              <Badge variant="outline" className="text-xs">
-                <Train className="h-3 w-3 mr-1" />
-                Transit: {property.transit_score}
-              </Badge>
-            )}
             {property.days_on_market != null && (
               <Badge variant="outline" className="text-xs">
                 <Calendar className="h-3 w-3 mr-1" />
@@ -417,6 +407,13 @@ export function BuyerPropertyCard({
               </Badge>
             )}
           </div>
+
+          {/* Enrichment badges */}
+          <EnrichmentBadges
+            enrichmentData={property.enrichment_data}
+            walkScore={property.walk_score}
+            transitScore={property.transit_score}
+          />
 
           {/* Actions row */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -527,32 +524,15 @@ export function BuyerPropertyCard({
                 </div>
               )}
 
-              {/* Walk / Transit scores */}
-              {(property.walk_score != null ||
-                property.transit_score != null) && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                    Walkability & Transit
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {property.walk_score != null && (
-                      <ScoreBar
-                        label="Walk Score"
-                        value={property.walk_score}
-                      />
-                    )}
-                    {property.transit_score != null && (
-                      <ScoreBar
-                        label="Transit Score"
-                        value={property.transit_score}
-                      />
-                    )}
-                  </div>
-                </div>
-              )}
+              {/* Enrichment detail section (Walk/Transit/Bike, Flood, Schools, Crime, etc.) */}
+              <EnrichmentDetail
+                enrichmentData={property.enrichment_data}
+                walkScore={property.walk_score}
+                transitScore={property.transit_score}
+              />
 
-              {/* School ratings */}
-              {Object.keys(schoolRatings).length > 0 && (
+              {/* School ratings (legacy - show when enrichment_data has no schools) */}
+              {!(property.enrichment_data as Record<string, unknown>)?.schools && Object.keys(schoolRatings).length > 0 && (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
                     School Ratings

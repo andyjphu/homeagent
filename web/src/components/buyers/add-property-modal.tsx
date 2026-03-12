@@ -49,6 +49,7 @@ export function AddPropertyModal({
   const [photoUrl, setPhotoUrl] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [agentNotes, setAgentNotes] = useState("");
+  const [autoEnrich, setAutoEnrich] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +72,7 @@ export function AddPropertyModal({
       setPhotoUrl("");
       setPhotos([]);
       setAgentNotes("");
+      setAutoEnrich(true);
       setSaved(false);
       setError(null);
     }
@@ -130,6 +132,14 @@ export function AddPropertyModal({
       }
 
       setSaved(true);
+
+      // Auto-enrich if checked
+      if (autoEnrich && data.property?.id) {
+        fetch(`/api/properties/${data.property.id}/enrich`, {
+          method: "POST",
+        }).catch(() => {});
+      }
+
       setTimeout(() => {
         onOpenChange(false);
         window.dispatchEvent(new Event("properties-updated"));
@@ -344,6 +354,20 @@ export function AddPropertyModal({
               placeholder="Why you picked this property for the buyer..."
               className="text-sm min-h-[60px] resize-y"
             />
+          </div>
+
+          {/* Auto-enrich checkbox */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="auto-enrich"
+              checked={autoEnrich}
+              onChange={(e) => setAutoEnrich(e.target.checked)}
+              className="h-4 w-4 rounded border-input"
+            />
+            <Label htmlFor="auto-enrich" className="text-xs cursor-pointer">
+              Auto-enrich with neighborhood data
+            </Label>
           </div>
 
           {error && <p className="text-xs text-destructive">{error}</p>}

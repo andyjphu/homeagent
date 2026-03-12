@@ -1,5 +1,6 @@
 import { createAdminClient } from "./admin";
 import type { ActivityEventType } from "@/types/database";
+import { dispatchNotification } from "@/lib/notifications/service";
 
 interface ActivityEntryOptions {
   buyerId?: string;
@@ -8,11 +9,16 @@ interface ActivityEntryOptions {
   communicationId?: string;
   taskId?: string;
   isActionRequired?: boolean;
+  /** Set to true to suppress notification dispatch for this entry */
+  skipNotification?: boolean;
 }
 
 /**
  * Shared helper for creating activity_feed entries.
  * Every mutation that logs activity should use this function.
+ *
+ * After inserting, dispatches a notification (fire-and-forget)
+ * unless skipNotification is set.
  */
 export async function createActivityEntry(
   agentId: string,
@@ -47,5 +53,24 @@ export async function createActivityEntry(
     return null;
   }
 
-  return data?.id ?? null;
+  const activityId = data?.id ?? null;
+
+  // Fire-and-forget notification dispatch — never block the caller
+  if (!options?.skipNotification) {
+    dispatchNotification({
+      agentId,
+      eventType: type,
+      activityId,
+      title,
+      description,
+      metadata,
+      buyerId: options?.buyerId,
+      propertyId: options?.propertyId,
+      dealId: options?.dealId,
+    }).catch((err) => {
+      console.error("[activity] Notification dispatch failed:", err);
+    });
+  }
+
+  return activityId;
 }

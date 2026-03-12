@@ -83,8 +83,12 @@ export async function POST(request: Request) {
     `New lead: ${(extractedInfo.name as string) || senderName || senderEmail}`,
     `Manually created from email`,
     {
+      leadName: (extractedInfo.name as string) || senderName || senderEmail,
       source: "email",
       email: senderEmail,
+      phone: (extractedInfo.phone as string) || null,
+      budget: (extractedInfo.budget as string) || null,
+      area: (extractedInfo.area as string) || null,
       leadId: lead.id,
     },
     {

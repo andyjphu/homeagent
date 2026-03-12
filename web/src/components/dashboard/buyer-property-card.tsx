@@ -30,6 +30,8 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { EnrichmentBadges } from "@/components/enrichment/enrichment-badges";
+import { EnrichmentDetail } from "@/components/enrichment/enrichment-detail";
 
 function ScoreBar({
   label,
@@ -478,6 +480,13 @@ export function BuyerPropertyCard({
               </Badge>
             )}
           </div>
+
+          {/* Enrichment badges */}
+          <EnrichmentBadges
+            enrichmentData={property.enrichment_data}
+            walkScore={property.walk_score}
+            transitScore={property.transit_score}
+          />
 
           {/* Actions row */}
           <div className="flex items-center gap-2 flex-wrap">

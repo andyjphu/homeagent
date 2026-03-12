@@ -14,10 +14,11 @@ import {
   Bell,
   Shield,
   Zap,
-  AlertTriangle,
-  Database,
+  CalendarDays,
 } from "lucide-react";
 import { GmailConnectButton } from "@/components/email/gmail-connect-button";
+import { CalendarConnectButton } from "@/components/calendar/calendar-connect-button";
+import { CalendarSettings } from "@/components/calendar/calendar-settings";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { PreferencesForm } from "@/components/settings/preferences-form";
 import { SignOutButton } from "@/components/settings/sign-out-button";
@@ -172,7 +173,47 @@ export default async function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* 3. Voice AI Receptionist */}
+      {/* 3. Google Calendar */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <CalendarDays className="h-4 w-4" />
+            Google Calendar
+          </CardTitle>
+          <CardDescription>
+            Sync deal deadlines to your calendar and show availability for showings
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Status</span>
+                <StatusBadge connected={agent.calendar_connected} />
+              </div>
+            </div>
+            <CalendarConnectButton isConnected={agent.calendar_connected} />
+          </div>
+          {agent.calendar_connected && (
+            <>
+              <Separator className="my-4" />
+              <CalendarSettings
+                workingHours={
+                  (agent.calendar_working_hours as { start: string; end: string; days: number[] }) ?? {
+                    start: "09:00",
+                    end: "18:00",
+                    days: [1, 2, 3, 4, 5, 6],
+                  }
+                }
+                autoCreateEvents={agent.calendar_auto_create_events ?? true}
+                showAvailability={agent.calendar_show_availability ?? true}
+              />
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 4. Voice AI Receptionist */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">

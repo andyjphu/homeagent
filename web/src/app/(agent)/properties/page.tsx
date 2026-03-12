@@ -95,7 +95,7 @@ export default async function PropertiesPage() {
                       rel="noopener noreferrer"
                       className="text-xs text-primary hover:underline inline-flex items-center gap-1"
                     >
-                      Zillow <ExternalLink className="h-3 w-3" />
+                      Listing <ExternalLink className="h-3 w-3" />
                     </a>
                   )}
                   {buyerNames.length > 0 && (

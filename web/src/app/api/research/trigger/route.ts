@@ -7,9 +7,23 @@ import {
   logEvent,
   updateTaskStatus,
 } from "@/lib/browser-use/save-results";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createActivityEntry } from "@/lib/supabase/activity";
 import type { ListingSearchParams } from "@/lib/listings";
 
+const PYTHON_SERVICE_URL = process.env.BROWSER_AGENT_URL || "http://localhost:8000";
+
+/**
+ * POST /api/research/trigger
+ *
+ * Creates an agent_task for enrichment + scoring of a buyer's existing properties.
+ * Attempts to delegate to the Python browser agent service. Falls back to
+ * API-based enrichment if the service is unavailable.
+ *
+ * The primary workflow for adding properties is manual entry + auto-enrichment.
+ * This research pipeline is supplementary infrastructure for browser-based
+ * enrichment (schools, walkscore, commute) and LLM scoring.
+ */
 export async function POST(request: Request) {
   const supabase = (await createClient()) as any;
   const {
@@ -20,7 +34,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { buyerId, agentId, intentProfile, taskType } = await request.json();
+  const { buyerId, agentId, intentProfile } = await request.json();
+
+  if (!buyerId || !agentId) {
+    return NextResponse.json({ error: "buyerId and agentId required" }, { status: 400 });
+  }
+
+  // Get buyer's existing property IDs
+  const admin = createAdminClient() as any;
+  const { data: scores } = await admin
+    .from("buyer_property_scores")
+    .select("property_id")
+    .eq("buyer_id", buyerId);
+
+  const propertyIds: string[] = (scores ?? []).map((s: { property_id: string }) => s.property_id);
+
+  if (propertyIds.length === 0) {
+    return NextResponse.json(
+      { error: "No properties to research. Add properties manually first, then run enrichment." },
+      { status: 400 }
+    );
+  }
 
   // Create task record
   const { data: task, error } = await supabase
@@ -28,9 +62,10 @@ export async function POST(request: Request) {
     .insert({
       agent_id: agentId,
       buyer_id: buyerId,
-      task_type: taskType || "full_research_pipeline",
+      task_type: "enrichment_pipeline",
       input_params: {
         intent_profile: intentProfile,
+        property_ids: propertyIds,
       },
     })
     .select()
@@ -44,8 +79,8 @@ export async function POST(request: Request) {
   await createActivityEntry(
     agentId,
     "research_started",
-    "Research started",
-    "Property research pipeline triggered",
+    "Enrichment pipeline started",
+    `Enriching ${propertyIds.length} properties with school/walkscore/commute data + scoring`,
     undefined,
     { buyerId, taskId: task.id }
   );

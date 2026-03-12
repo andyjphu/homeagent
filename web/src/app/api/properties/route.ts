@@ -93,7 +93,7 @@ export async function POST(request: Request) {
         hoa_monthly: hoaMonthly || null,
         property_type: propertyType || null,
         listing_description: listingDescription || null,
-        zillow_url: listingUrl || null,
+        zillow_url: listingUrl || null, // DB column stores any listing URL
         listing_status: "active",
         photos: photos || [],
         latitude: latitude || null,

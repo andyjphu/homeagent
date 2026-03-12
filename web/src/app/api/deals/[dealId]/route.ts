@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { syncDealToCalendar } from "@/lib/calendar/sync";
 
 export async function PATCH(
   request: Request,
@@ -52,6 +53,32 @@ export async function PATCH(
     if (error) {
       console.error("[deals] PATCH failed:", error.message);
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Fire-and-forget calendar sync if deadline fields were updated
+    if ("closing_date" in updates || "contingencies" in updates) {
+      try {
+        const { data: related } = await supabase
+          .from("deals")
+          .select("agent_id, buyers(full_name), properties(address)")
+          .eq("id", dealId)
+          .single();
+        if (related) {
+          const buyerName =
+            (related.buyers as any)?.full_name ?? "Unknown";
+          const addr =
+            (related.properties as any)?.address ?? "Unknown";
+          syncDealToCalendar(
+            related.agent_id,
+            dealId,
+            deal,
+            buyerName,
+            addr
+          ).catch(console.error);
+        }
+      } catch {
+        // Silently ignore calendar sync errors
+      }
     }
 
     return NextResponse.json({ deal });

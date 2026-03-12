@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Loader2, AlertTriangle, ExternalLink } from "lucide-react";
+import { Sparkles, Loader2, AlertTriangle, Info } from "lucide-react";
 
 export function ResearchTrigger({
   buyerId,
@@ -12,17 +12,17 @@ export function ResearchTrigger({
 }: {
   buyerId: string;
   agentId: string;
-  intentProfile: any;
+  intentProfile: Record<string, unknown>;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [liveUrl, setLiveUrl] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const router = useRouter();
 
   async function handleTrigger() {
     setLoading(true);
     setError(null);
-    setLiveUrl(null);
+    setInfo(null);
     try {
       const response = await fetch("/api/research/trigger", {
         method: "POST",
@@ -31,23 +31,26 @@ export function ResearchTrigger({
           buyerId,
           agentId,
           intentProfile,
-          taskType: "full_research_pipeline",
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error ?? "Failed to start research");
+        setError(data.error ?? "Failed to start enrichment");
       } else if (data.error) {
         setError(data.error);
-      } else if (data.liveUrl) {
-        setLiveUrl(data.liveUrl);
+      } else {
+        if (data.service === "api_fallback") {
+          setInfo("Using API enrichment (research service unavailable)");
+        } else {
+          setInfo(`Enriching ${data.propertyCount} properties...`);
+        }
       }
 
       router.refresh();
     } catch (err) {
-      setError("Failed to start research");
+      setError("Failed to start enrichment");
       console.error("Failed to trigger research:", err);
     }
     setLoading(false);
@@ -55,13 +58,19 @@ export function ResearchTrigger({
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <Button onClick={handleTrigger} disabled={loading} size="sm">
+      <Button
+        onClick={handleTrigger}
+        disabled={loading}
+        size="sm"
+        variant="outline"
+        title="Enrich existing properties with school/walkscore/commute data and run AI scoring"
+      >
         {loading ? (
           <Loader2 className="h-4 w-4 mr-1 animate-spin" />
         ) : (
           <Sparkles className="h-4 w-4 mr-1" />
         )}
-        {loading ? "Starting..." : "Run AI Research"}
+        {loading ? "Starting..." : "Enrich & Score"}
       </Button>
       {error && (
         <span className="text-xs text-destructive flex items-center gap-1 max-w-80">
@@ -69,16 +78,11 @@ export function ResearchTrigger({
           {error}
         </span>
       )}
-      {liveUrl && (
-        <a
-          href={liveUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-primary hover:underline flex items-center gap-1"
-        >
-          Watch live
-          <ExternalLink className="h-3 w-3" />
-        </a>
+      {info && !error && (
+        <span className="text-xs text-muted-foreground flex items-center gap-1 max-w-80">
+          <Info className="h-3 w-3 shrink-0" />
+          {info}
+        </span>
       )}
     </div>
   );

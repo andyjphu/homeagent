@@ -29,8 +29,7 @@ export type CommunicationClassification =
   | "noise"
   | "action_required";
 export type AgentTaskType =
-  | "zillow_search"
-  | "property_detail"
+  | "enrichment_pipeline"
   | "cross_reference"
   | "comp_analysis"
   | "listing_monitor"
@@ -85,6 +84,7 @@ export interface AgentPreferences {
   email_activity: boolean;
   property_changes: boolean;
   deadline_reminders: boolean;
+  sms_notifications: boolean;
   // Voice AI
   auto_create_leads_from_calls: boolean;
   // Enrichment
@@ -99,6 +99,7 @@ export const DEFAULT_PREFERENCES: AgentPreferences = {
   email_activity: true,
   property_changes: true,
   deadline_reminders: true,
+  sms_notifications: true,
   auto_create_leads_from_calls: true,
   auto_enrich_properties: true,
   ai_property_scoring: true,
@@ -122,10 +123,17 @@ export interface Database {
           gmail_token_expires_at: string | null;
           gmail_last_scan_at: string | null;
           calendar_connected: boolean;
+          google_calendar_access_token: string | null;
+          google_calendar_refresh_token: string | null;
+          google_calendar_token_expires_at: string | null;
+          calendar_working_hours: Json;
+          calendar_auto_create_events: boolean;
+          calendar_show_availability: boolean;
           notification_preferences: Json;
           email_signature: string | null;
           communication_tone: string;
           negotiation_style_profile: Json;
+          timezone: string;
           created_at: string;
           updated_at: string;
         };
@@ -249,8 +257,8 @@ export interface Database {
           last_monitored_at: string | null;
           monitoring_interval_hours: number;
           scraped_at: string | null;
-          research_task_id: string | null;
           enrichment_data: Json;
+          research_task_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -437,6 +445,28 @@ export interface Database {
         };
         Update: Partial<Database["public"]["Tables"]["activity_feed"]["Row"]>;
       };
+      calendar_events: {
+        Row: {
+          id: string;
+          agent_id: string;
+          deal_id: string;
+          google_event_id: string;
+          event_type: string;
+          event_date: string | null;
+          summary: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          agent_id: string;
+          deal_id: string;
+          google_event_id: string;
+          event_type: string;
+          event_date?: string | null;
+          summary?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["calendar_events"]["Row"]>;
+      };
       agent_tasks: {
         Row: {
           id: string;
@@ -545,6 +575,44 @@ export interface Database {
           expires_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["enrichment_cache"]["Row"]>;
+      };
+      notifications: {
+        Row: {
+          id: string;
+          agent_id: string;
+          event_type: ActivityEventType;
+          channel: "email" | "sms";
+          status: "sent" | "failed" | "queued" | "batched";
+          recipient: string;
+          subject: string | null;
+          body: string;
+          payload: Json;
+          activity_id: string | null;
+          buyer_id: string | null;
+          property_id: string | null;
+          deal_id: string | null;
+          error_message: string | null;
+          scheduled_for: string | null;
+          sent_at: string;
+          created_at: string;
+        };
+        Insert: {
+          agent_id: string;
+          event_type: ActivityEventType;
+          channel: "email" | "sms";
+          status?: "sent" | "failed" | "queued" | "batched";
+          recipient: string;
+          subject?: string | null;
+          body: string;
+          payload?: Json;
+          activity_id?: string | null;
+          buyer_id?: string | null;
+          property_id?: string | null;
+          deal_id?: string | null;
+          error_message?: string | null;
+          scheduled_for?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["notifications"]["Row"]>;
       };
     };
   };

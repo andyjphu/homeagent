@@ -266,6 +266,9 @@ export async function POST(request: Request) {
         : "Call analyzed",
       extraction.summary || undefined,
       {
+        callerName: extraction.caller_name || callerName || null,
+        phone: extraction.phone || callerPhone || null,
+        summary: extraction.summary || null,
         extraction_source: extractionSource,
         confidence: finalConfidence,
         is_real_estate: extraction.is_real_estate_related,

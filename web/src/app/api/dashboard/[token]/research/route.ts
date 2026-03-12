@@ -59,7 +59,7 @@ export async function POST(
       .insert({
         agent_id: buyer.agent_id,
         buyer_id: buyer.id,
-        task_type: "buyer_research",
+        task_type: "full_research_pipeline",
         input_params: {
           intent_profile: intentProfile,
           triggered_by: "buyer",
@@ -272,7 +272,7 @@ export async function GET(
       .from("agent_tasks")
       .select("id, task_type, status, created_at, output_data, error_message, input_params")
       .eq("buyer_id", buyer.id)
-      .in("task_type", ["full_research_pipeline", "buyer_research"])
+      .eq("task_type", "full_research_pipeline")
       .order("created_at", { ascending: false })
       .limit(10);
 

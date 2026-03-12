@@ -55,6 +55,13 @@ function getProvider(task: LLMTask): "cerebras" | "gemini" {
   throw new Error("No LLM API keys configured. Set CEREBRAS_API_KEY or GEMINI_API_KEY.");
 }
 
+function getFallbackProvider(task: LLMTask): "cerebras" | "gemini" | null {
+  const primary = getProvider(task);
+  if (primary === "gemini" && hasCerebrasKey()) return "cerebras";
+  if (primary === "cerebras" && hasGeminiKey()) return "gemini";
+  return null;
+}
+
 export async function llmComplete(
   task: LLMTask,
   systemPrompt: string,
@@ -62,10 +69,23 @@ export async function llmComplete(
   options?: { maxTokens?: number; temperature?: number }
 ): Promise<string> {
   const provider = getProvider(task);
-  if (provider === "cerebras") {
-    return cerebrasComplete(systemPrompt, userPrompt, options);
+  try {
+    if (provider === "cerebras") {
+      return await cerebrasComplete(systemPrompt, userPrompt, options);
+    }
+    return await geminiComplete(systemPrompt, userPrompt, options);
+  } catch (err: any) {
+    // On rate limit or transient error, try fallback provider
+    const fallback = getFallbackProvider(task);
+    if (fallback && (err.status === 429 || err.message?.includes("429"))) {
+      console.warn(`[llm] ${provider} failed (${err.status ?? "error"}), falling back to ${fallback}`);
+      if (fallback === "cerebras") {
+        return cerebrasComplete(systemPrompt, userPrompt, options);
+      }
+      return geminiComplete(systemPrompt, userPrompt, options);
+    }
+    throw err;
   }
-  return geminiComplete(systemPrompt, userPrompt, options);
 }
 
 export async function llmJSON<T>(
@@ -75,8 +95,21 @@ export async function llmJSON<T>(
   options?: { maxTokens?: number }
 ): Promise<T> {
   const provider = getProvider(task);
-  if (provider === "cerebras") {
-    return cerebrasJSON<T>(systemPrompt, userPrompt, options);
+  try {
+    if (provider === "cerebras") {
+      return await cerebrasJSON<T>(systemPrompt, userPrompt, options);
+    }
+    return await geminiJSON<T>(systemPrompt, userPrompt, options);
+  } catch (err: any) {
+    // On rate limit or transient error, try fallback provider
+    const fallback = getFallbackProvider(task);
+    if (fallback && (err.status === 429 || err.message?.includes("429"))) {
+      console.warn(`[llm] ${provider} failed (${err.status ?? "error"}), falling back to ${fallback}`);
+      if (fallback === "cerebras") {
+        return cerebrasJSON<T>(systemPrompt, userPrompt, options);
+      }
+      return geminiJSON<T>(systemPrompt, userPrompt, options);
+    }
+    throw err;
   }
-  return geminiJSON<T>(systemPrompt, userPrompt, options);
 }

@@ -40,21 +40,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "buyerId and agentId required" }, { status: 400 });
   }
 
-  // Get buyer's existing property IDs
   const admin = createAdminClient() as any;
-  const { data: scores } = await admin
-    .from("buyer_property_scores")
-    .select("property_id")
-    .eq("buyer_id", buyerId);
-
-  const propertyIds: string[] = (scores ?? []).map((s: { property_id: string }) => s.property_id);
-
-  if (propertyIds.length === 0) {
-    return NextResponse.json(
-      { error: "No properties to research. Add properties manually first, then run enrichment." },
-      { status: 400 }
-    );
-  }
 
   // Create task record
   const { data: task, error } = await supabase
@@ -65,7 +51,6 @@ export async function POST(request: Request) {
       task_type: "full_research_pipeline",
       input_params: {
         intent_profile: intentProfile,
-        property_ids: propertyIds,
       },
     })
     .select()
@@ -80,7 +65,7 @@ export async function POST(request: Request) {
     agentId,
     "research_started",
     "Enrichment pipeline started",
-    `Enriching ${propertyIds.length} properties with school/walkscore/commute data + scoring`,
+    `Starting AI research: search, enrich, and score properties`,
     undefined,
     { buyerId, taskId: task.id }
   );
@@ -247,5 +232,9 @@ export async function POST(request: Request) {
     },
   });
 
-  return NextResponse.json({ task });
+  return NextResponse.json({
+    task,
+    properties_found: listings.length,
+    properties_saved: savedIds.length,
+  });
 }

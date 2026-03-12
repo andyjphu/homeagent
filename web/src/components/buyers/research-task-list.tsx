@@ -256,18 +256,19 @@ export function ResearchTaskList({ buyerId }: { buyerId: string }) {
     fetchTasks();
   }, [fetchTasks]);
 
-  // Poll: refresh from DB while tasks are active
-  // Both Python service and API fallback update status directly in Supabase
+  // Poll: advance pipeline + refresh from DB while tasks are active
   useEffect(() => {
     const interval = setInterval(async () => {
       const hasActive = tasksRef.current.some(
         (t) => t.status === "running" || t.status === "queued"
       );
       if (!hasActive) return;
+      // Advance the pipeline (enrich/score) then refresh UI
+      await processActiveTasks();
       await fetchTasks();
     }, 4000);
     return () => clearInterval(interval);
-  }, [fetchTasks]);
+  }, [fetchTasks, processActiveTasks]);
 
   if (loading) {
     return (

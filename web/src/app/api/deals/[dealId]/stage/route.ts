@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createActivityEntry } from "@/lib/supabase/activity";
+import { deleteDealCalendarEvents } from "@/lib/calendar/sync";
 import type { DealStage } from "@/types/database";
 
 const VALID_STAGES: DealStage[] = [
@@ -111,6 +112,11 @@ export async function PATCH(
           dealId,
         }
       );
+    }
+
+    // Delete calendar events when deal goes dead
+    if (stage === "dead") {
+      deleteDealCalendarEvents(deal.agent_id, dealId).catch(console.error);
     }
 
     return NextResponse.json({ deal: updatedDeal });

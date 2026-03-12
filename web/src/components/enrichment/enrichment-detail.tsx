@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { type PropertyEnrichment, hasEnrichmentData } from "@/lib/enrichment/types";
+import type { PropertyEnrichment } from "@/lib/enrichment/types";
 import {
   Footprints,
   Droplets,
@@ -15,6 +15,15 @@ import {
   Users,
   ExternalLink,
 } from "lucide-react";
+
+function isEnrichment(data: unknown): data is PropertyEnrichment {
+  if (!data || typeof data !== "object") return false;
+  const d = data as Record<string, unknown>;
+  return !!(
+    d.walkability || d.flood || d.schools || d.crime || d.broadband ||
+    d.demographics || d.air_quality || d.amenities
+  );
+}
 
 function ScoreBar({
   label,
@@ -60,30 +69,30 @@ export function EnrichmentDetail({
   walkScore,
   transitScore,
 }: EnrichmentDetailProps) {
-  const enrichment = hasEnrichmentData(enrichmentData)
+  const enrichment = isEnrichment(enrichmentData)
     ? (enrichmentData as PropertyEnrichment)
     : null;
 
   // Resolve scores: prefer enrichment_data, fall back to legacy columns
-  const ws = enrichment?.walk_score;
-  const resolvedWalkScore = ws?.walk_score ?? walkScore;
-  const resolvedTransitScore = ws?.transit_score ?? transitScore;
-  const bikeScore = ws?.bike_score;
-  const wsLink = ws?.ws_link;
+  const walk = enrichment?.walkability;
+  const resolvedWalkScore = walk?.walk_score ?? walkScore;
+  const resolvedTransitScore = walk?.transit_score ?? transitScore;
+  const bikeScore = walk?.bike_score;
+  const wsLink = walk?.ws_link;
 
-  const flood = enrichment?.flood_zone;
+  const flood = enrichment?.flood;
   const schools = enrichment?.schools;
   const crime = enrichment?.crime;
   const broadband = enrichment?.broadband;
   const demographics = enrichment?.demographics;
   const airQuality = enrichment?.air_quality;
-  const amenities = enrichment?.nearby_amenities;
+  const amenities = enrichment?.amenities;
 
   const hasAnyData =
     resolvedWalkScore != null ||
     resolvedTransitScore != null ||
     flood ||
-    schools?.length ||
+    schools?.nearby?.length ||
     crime ||
     broadband ||
     demographics ||
@@ -146,7 +155,7 @@ export function EnrichmentDetail({
           </div>
           <div
             className={`text-sm p-2.5 rounded-lg border ${
-              flood.risk_level === "minimal"
+              flood.risk_level === "low"
                 ? "bg-green-50 border-green-200 text-green-800"
                 : flood.risk_level === "moderate"
                   ? "bg-orange-50 border-orange-200 text-orange-800"
@@ -155,11 +164,15 @@ export function EnrichmentDetail({
           >
             <span className="font-medium">
               Zone {flood.zone}
-              {flood.risk_level === "minimal" && " — Minimal Risk"}
+              {flood.risk_level === "low" && " — Low Risk"}
               {flood.risk_level === "moderate" && " — Moderate Risk"}
               {flood.risk_level === "high" && " — High Risk"}
+              {flood.risk_level === "very_high" && " — Very High Risk"}
+              {flood.risk_level === "undetermined" && " — Undetermined"}
             </span>
-            <p className="text-xs mt-1 opacity-80">{flood.description}</p>
+            {flood.insurance_required && (
+              <p className="text-xs mt-1 opacity-80">Flood insurance required</p>
+            )}
           </div>
         </div>
       )}
@@ -174,11 +187,11 @@ export function EnrichmentDetail({
             </span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
-            {demographics.median_household_income != null && (
+            {demographics.median_income != null && (
               <div>
                 <p className="text-xs text-muted-foreground">Median Income</p>
                 <p className="font-medium">
-                  ${demographics.median_household_income.toLocaleString()}
+                  ${demographics.median_income.toLocaleString()}
                 </p>
               </div>
             )}
@@ -199,13 +212,13 @@ export function EnrichmentDetail({
                 </p>
                 <p className="font-medium">
                   {demographics.owner_occupied_pct}% owner /{" "}
-                  {demographics.renter_occupied_pct ?? 100 - demographics.owner_occupied_pct}% renter
+                  {100 - demographics.owner_occupied_pct}% renter
                 </p>
               </div>
             )}
           </div>
           <p className="text-[10px] text-muted-foreground mt-1">
-            Source: {demographics.source}
+            Source: US Census ACS
           </p>
         </div>
       )}
@@ -223,20 +236,20 @@ export function EnrichmentDetail({
             <AmenityItem
               icon={<ShoppingCart className="h-3.5 w-3.5" />}
               label="Grocery"
-              count={amenities.grocery.count}
-              distance={amenities.grocery.nearest_distance_miles}
+              count={amenities.grocery_count}
+              distance={amenities.nearest_grocery_miles}
             />
             <AmenityItem
               icon={<UtensilsCrossed className="h-3.5 w-3.5" />}
               label="Restaurants"
-              count={amenities.restaurants.count}
-              distance={amenities.restaurants.nearest_distance_miles}
+              count={amenities.restaurant_count}
+              distance={null}
             />
             <AmenityItem
               icon={<TreePine className="h-3.5 w-3.5" />}
               label="Parks"
-              count={amenities.parks.count}
-              distance={amenities.parks.nearest_distance_miles}
+              count={amenities.park_count}
+              distance={null}
             />
           </div>
         </div>
@@ -255,7 +268,7 @@ export function EnrichmentDetail({
             <p>
               <span className="text-muted-foreground">Max speed: </span>
               <span className="font-medium">
-                {broadband.max_download_speed} Mbps
+                {broadband.max_download_mbps} Mbps
               </span>
               {broadband.fiber_available && (
                 <span className="ml-2 text-green-600 font-medium">
@@ -265,19 +278,19 @@ export function EnrichmentDetail({
             </p>
             {broadband.providers.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {broadband.providers.map((p) => (
+                {broadband.providers.map((name) => (
                   <span
-                    key={p.name}
+                    key={name}
                     className="text-xs bg-muted px-2 py-0.5 rounded"
                   >
-                    {p.name} ({p.max_speed} Mbps, {p.technology})
+                    {name}
                   </span>
                 ))}
               </div>
             )}
           </div>
           <p className="text-[10px] text-muted-foreground mt-1">
-            Source: {broadband.source}
+            Source: FCC Broadband Map
           </p>
         </div>
       )}
@@ -299,22 +312,22 @@ export function EnrichmentDetail({
             </span>
           </p>
           <p className="text-[10px] text-muted-foreground mt-1">
-            Source: {airQuality.source}
+            Source: EPA AirNow
           </p>
         </div>
       )}
 
       {/* Schools */}
-      {schools && schools.length > 0 && (
+      {schools && schools.nearby.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <GraduationCap className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Schools ({schools.length} within 5 miles)
+              Schools ({schools.nearby.length} within 5 miles)
             </span>
           </div>
           <div className="space-y-1.5">
-            {schools.map((school, i) => (
+            {schools.nearby.map((school, i) => (
               <div
                 key={`${school.name}-${i}`}
                 className="flex items-center justify-between text-sm border-b last:border-b-0 pb-1.5 last:pb-0"
@@ -322,9 +335,9 @@ export function EnrichmentDetail({
                 <div className="min-w-0">
                   <p className="font-medium truncate">{school.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {school.type} · {school.grade_range}
-                    {school.enrollment != null &&
-                      ` · ${school.enrollment.toLocaleString()} students`}
+                    {school.type} · {school.grades}
+                    {school.student_count != null &&
+                      ` · ${school.student_count.toLocaleString()} students`}
                   </p>
                 </div>
                 {school.distance_miles != null && (
@@ -335,21 +348,14 @@ export function EnrichmentDetail({
               </div>
             ))}
           </div>
-          {schools[0]?.source === "nces" && (
-            <p className="text-[10px] text-muted-foreground mt-1.5">
-              Source: NCES · Ratings available in a future update
-            </p>
-          )}
-          {schools[0]?.source && schools[0].source !== "nces" && (
-            <p className="text-[10px] text-muted-foreground mt-1.5">
-              Source: {schools[0].source}
-            </p>
-          )}
+          <p className="text-[10px] text-muted-foreground mt-1.5">
+            Source: {schools.source === "nces" ? "NCES" : "GreatSchools"}
+          </p>
         </div>
       )}
 
       {/* Crime stats */}
-      {crime && (
+      {crime && (crime.violent_crime_rate != null || crime.safety_score != null) && (
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <ShieldAlert className="h-3.5 w-3.5 text-muted-foreground" />
@@ -358,24 +364,34 @@ export function EnrichmentDetail({
             </span>
           </div>
           <div className="text-sm space-y-0.5">
-            <p>
-              Crime in{" "}
-              <span className="font-medium">{crime.jurisdiction}</span>:{" "}
-              <span className="font-medium">
-                {crime.violent_crime_rate.toLocaleString()}
-              </span>{" "}
-              violent crimes per 100K
-            </p>
-            <p>
-              <span className="font-medium">
-                {crime.property_crime_rate.toLocaleString()}
-              </span>{" "}
-              property crimes per 100K
-            </p>
+            {crime.jurisdiction && crime.violent_crime_rate != null && (
+              <p>
+                Crime in{" "}
+                <span className="font-medium">{crime.jurisdiction}</span>:{" "}
+                <span className="font-medium">
+                  {crime.violent_crime_rate.toLocaleString()}
+                </span>{" "}
+                violent crimes per 100K
+              </p>
+            )}
+            {crime.property_crime_rate != null && (
+              <p>
+                <span className="font-medium">
+                  {crime.property_crime_rate.toLocaleString()}
+                </span>{" "}
+                property crimes per 100K
+              </p>
+            )}
+            {crime.safety_score != null && (
+              <p>
+                Safety score:{" "}
+                <span className="font-medium">{crime.safety_score}</span> / 100
+              </p>
+            )}
           </div>
           <p className="text-[10px] text-muted-foreground mt-1">
-            Source: {crime.source === "fbi_ucr" ? "FBI UCR" : crime.source} ·{" "}
-            {crime.data_year} data
+            Source: {crime.source === "fbi_ucr" ? "FBI UCR" : "Crimeometer"}
+            {crime.data_year && ` · ${crime.data_year} data`}
             {crime.source === "fbi_ucr" && " · County-level data"}
           </p>
         </div>

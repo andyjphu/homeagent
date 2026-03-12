@@ -3,7 +3,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2, ExternalLink } from "lucide-react";
 import Link from "next/link";
-import { PropertiesActions } from "@/components/properties/properties-actions";
 
 export default async function PropertiesPage() {
   const supabase = (await createClient()) as any;
@@ -26,14 +25,6 @@ export default async function PropertiesPage() {
     .order("created_at", { ascending: false })
     .limit(100);
 
-  // Fetch buyers for the buyer selector in search/research
-  const { data: buyers } = await supabase
-    .from("buyers")
-    .select("id, full_name, intent_profile")
-    .eq("agent_id", agent.id)
-    .eq("is_active", true)
-    .order("full_name", { ascending: true });
-
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
@@ -43,14 +34,7 @@ export default async function PropertiesPage() {
             {properties?.length ?? 0} properties across all buyers
           </p>
         </div>
-        <PropertiesActions
-          agentId={agent.id}
-          buyers={buyers?.map((b: any) => ({
-            id: b.id,
-            full_name: b.full_name,
-            intent_profile: b.intent_profile,
-          })) ?? []}
-        />
+        {/* Search Listings and AI Research are available per-client in the Properties tab */}
       </div>
 
       {(!properties || properties.length === 0) ? (
@@ -58,7 +42,7 @@ export default async function PropertiesPage() {
           <CardContent className="py-12 text-center">
             <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">
-              No properties yet. Use <strong>Search Listings</strong> to find properties via MLS, or add them manually from a buyer&apos;s page.
+              No properties yet. Go to a buyer&apos;s page and use <strong>Search Listings</strong> in the Properties tab to find properties via MLS.
             </p>
           </CardContent>
         </Card>

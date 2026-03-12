@@ -101,10 +101,6 @@ export default async function BuyerDetailPage({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <SearchListingsButton
-            buyerId={buyerId}
-            intentProfile={intent}
-          />
           <ResearchTrigger buyerId={buyer.id} agentId={buyer.agent_id} intentProfile={intent} />
           <EmailSummaryButton buyerId={buyer.id} />
           <Button variant="outline" size="sm" asChild>

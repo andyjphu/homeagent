@@ -11,6 +11,7 @@ import { FilterPanel } from "@/components/dashboard/filter-panel";
 import { DealTimeline } from "@/components/dashboard/deal-timeline";
 import { PropertyList } from "@/components/dashboard/property-list";
 import { BuyerSearchListings } from "@/components/dashboard/buyer-search-listings";
+import { BuyerResearch } from "@/components/dashboard/buyer-research";
 import { BuyerDashboardPoller } from "@/components/dashboard/buyer-poller";
 
 function PropertyListSkeleton() {
@@ -227,6 +228,9 @@ export default async function BuyerDashboardPage({
           dashboardToken={dashboardToken}
           intentProfile={intent}
         />
+
+        {/* AI Research section */}
+        <BuyerResearch dashboardToken={dashboardToken} />
 
         {/* Property list */}
         <div>

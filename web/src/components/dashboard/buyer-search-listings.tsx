@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Loader2,
   Search,
@@ -317,8 +316,8 @@ export function BuyerSearchListings({
           </div>
 
           {/* Results */}
-          <ScrollArea className="flex-1 min-h-0 mt-2">
-            <div className="space-y-2 pr-3">
+          <div className="flex-1 min-h-0 mt-2 overflow-y-auto">
+            <div className="space-y-2 pr-1">
               {error && (
                 <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded px-3 py-3">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -409,14 +408,26 @@ export function BuyerSearchListings({
                           </span>
                         )}
                       </div>
-                      {listing.property_type && (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] px-1.5 py-0"
-                        >
-                          {listing.property_type}
-                        </Badge>
-                      )}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {listing.property_type && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0"
+                          >
+                            {listing.property_type}
+                          </Badge>
+                        )}
+                        {listing.year_built && (
+                          <span className="text-[10px] text-muted-foreground">
+                            Built {listing.year_built}
+                          </span>
+                        )}
+                        {listing.days_on_market != null && (
+                          <span className="text-[10px] text-muted-foreground">
+                            {listing.days_on_market}d on market
+                          </span>
+                        )}
+                      </div>
                       {suggestError && (
                         <p className="text-xs text-destructive">
                           {suggestError}
@@ -446,7 +457,7 @@ export function BuyerSearchListings({
                 );
               })}
             </div>
-          </ScrollArea>
+          </div>
         </DialogContent>
       </Dialog>
     </>

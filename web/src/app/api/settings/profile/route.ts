@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { full_name, phone, brokerage, email_signature, communication_tone } = body;
+    const { full_name, phone, brokerage, email_signature, communication_tone, timezone } = body;
 
     // Validate communication_tone if provided
     const validTones = ["professional", "friendly", "casual"];
@@ -31,6 +31,10 @@ export async function POST(request: Request) {
 
     if (communication_tone) {
       updateData.communication_tone = communication_tone;
+    }
+
+    if (timezone && typeof timezone === "string") {
+      updateData.timezone = timezone;
     }
 
     const { error } = await supabase

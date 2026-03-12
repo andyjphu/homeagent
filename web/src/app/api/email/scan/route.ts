@@ -261,8 +261,12 @@ export async function POST(request: Request) {
                 `New lead: ${(extractedInfo.name as string) || senderName || senderAddr}`,
                 `Detected from email: ${email.subject || "(no subject)"}`,
                 {
+                  leadName: (extractedInfo.name as string) || senderName || senderAddr,
                   source: "email",
                   email: senderAddr,
+                  phone: (extractedInfo.phone as string) || null,
+                  budget: (extractedInfo.budget as string) || null,
+                  area: (extractedInfo.area as string) || null,
                   confidence: classification.confidence,
                 },
                 {

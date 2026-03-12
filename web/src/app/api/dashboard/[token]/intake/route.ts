@@ -57,13 +57,18 @@ export async function POST(
     })
     .eq("id", buyer.id);
 
-  // Insert activity feed entry
+  // Insert activity feed entry with intake details for notification email
   await createActivityEntry(
     buyer.agent_id,
     "buyer_updated",
     `${buyer.full_name} completed intake questionnaire`,
     "Buyer filled out their home search preferences. Review their updated profile to start curating properties.",
-    undefined,
+    {
+      budget: merged.budget ?? null,
+      beds: merged.beds ?? null,
+      areas: merged.preferred_areas ?? null,
+      timeline: merged.timeline ?? null,
+    },
     { buyerId: buyer.id, isActionRequired: true }
   );
 

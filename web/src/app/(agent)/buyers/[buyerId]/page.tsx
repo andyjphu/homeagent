@@ -100,9 +100,13 @@ export default async function BuyerDetailPage({
             <span>via {buyer.source}</span>
           </div>
         </div>
-        <div className="flex gap-2">
-          <EmailSummaryButton buyerId={buyer.id} />
+        <div className="flex items-center gap-2">
+          <SearchListingsButton
+            buyerId={buyerId}
+            intentProfile={intent}
+          />
           <ResearchTrigger buyerId={buyer.id} agentId={buyer.agent_id} intentProfile={intent} />
+          <EmailSummaryButton buyerId={buyer.id} />
           <Button variant="outline" size="sm" asChild>
             <a href={dashboardUrl} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="h-4 w-4 mr-1" />
@@ -243,7 +247,7 @@ export default async function BuyerDetailPage({
               <CardContent className="py-12 text-center">
                 <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">
-                  No properties yet. Add properties manually or search listings, then use &quot;Enrich &amp; Score&quot; to add neighborhood data and AI scoring.
+                  No properties yet. Use <strong>Search Listings</strong> to find properties, <strong>AI Research</strong> to auto-search and score, or add them manually.
                 </p>
               </CardContent>
             </Card>

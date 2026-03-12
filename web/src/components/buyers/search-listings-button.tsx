@@ -31,23 +31,29 @@ export function SearchListingsButton({
       .catch(() => setHasApiKey(false));
   }, []);
 
-  // Don't render the button if API key is not configured
-  if (hasApiKey === false) return null;
-  // Show nothing while loading the check
-  if (hasApiKey === null) return null;
+  const isDisabled = hasApiKey === false;
+  const isLoading = hasApiKey === null;
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setOpen(true)}
+        disabled={isDisabled || isLoading}
+        title={isDisabled ? "Configure RAPIDAPI_KEY in Settings to enable listing search" : "Search MLS listings"}
+      >
         <Search className="h-4 w-4 mr-1" />
         Search Listings
       </Button>
-      <SearchListingsModal
-        open={open}
-        onOpenChange={setOpen}
-        buyerId={buyerId}
-        intentProfile={intentProfile}
-      />
+      {hasApiKey && (
+        <SearchListingsModal
+          open={open}
+          onOpenChange={setOpen}
+          buyerId={buyerId}
+          intentProfile={intentProfile}
+        />
+      )}
     </>
   );
 }

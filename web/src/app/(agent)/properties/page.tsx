@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2, ExternalLink } from "lucide-react";
 import Link from "next/link";
+import { PropertiesActions } from "@/components/properties/properties-actions";
 
 export default async function PropertiesPage() {
   const supabase = (await createClient()) as any;
@@ -25,13 +26,31 @@ export default async function PropertiesPage() {
     .order("created_at", { ascending: false })
     .limit(100);
 
+  // Fetch buyers for the buyer selector in search/research
+  const { data: buyers } = await supabase
+    .from("buyers")
+    .select("id, full_name, intent_profile")
+    .eq("agent_id", agent.id)
+    .eq("is_active", true)
+    .order("full_name", { ascending: true });
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Properties</h1>
-        <p className="text-muted-foreground">
-          {properties?.length ?? 0} properties across all buyers
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Properties</h1>
+          <p className="text-muted-foreground">
+            {properties?.length ?? 0} properties across all buyers
+          </p>
+        </div>
+        <PropertiesActions
+          agentId={agent.id}
+          buyers={buyers?.map((b: any) => ({
+            id: b.id,
+            full_name: b.full_name,
+            intent_profile: b.intent_profile,
+          })) ?? []}
+        />
       </div>
 
       {(!properties || properties.length === 0) ? (
@@ -39,7 +58,7 @@ export default async function PropertiesPage() {
           <CardContent className="py-12 text-center">
             <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">
-              No properties yet. Add properties from a buyer&apos;s page or run research.
+              No properties yet. Use <strong>Search Listings</strong> to find properties via MLS, or add them manually from a buyer&apos;s page.
             </p>
           </CardContent>
         </Card>

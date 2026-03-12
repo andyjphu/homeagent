@@ -63,14 +63,14 @@ export function ResearchTrigger({
         disabled={loading}
         size="sm"
         variant="outline"
-        title="Enrich existing properties with school/walkscore/commute data and run AI scoring"
+        title="Search listings, enrich with neighborhood data, and run AI scoring"
       >
         {loading ? (
           <Loader2 className="h-4 w-4 mr-1 animate-spin" />
         ) : (
           <Sparkles className="h-4 w-4 mr-1" />
         )}
-        {loading ? "Starting..." : "Enrich & Score"}
+        {loading ? "Researching..." : "AI Research"}
       </Button>
       {error && (
         <span className="text-xs text-destructive flex items-center gap-1 max-w-80">

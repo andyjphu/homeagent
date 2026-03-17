@@ -3,13 +3,21 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthedClient } from "@/lib/gmail/tokens";
 import { fetchRecentEmails } from "@/lib/gmail/client";
-import { llmJSON } from "@/lib/llm/router";
+import { llmJSON, isLLMAvailable } from "@/lib/llm/router";
 import { EMAIL_CLASSIFICATION_PROMPT, LEAD_CLASSIFICATION_PROMPT } from "@/lib/llm/prompts/lead-classification";
+import { classifyByKeywords } from "@/lib/email/keyword-classifier";
+import { createActivityEntry } from "@/lib/supabase/activity";
 
 interface ClassificationResult {
   classification: "deal_relevant" | "new_lead" | "noise" | "action_required";
   confidence: "high" | "medium" | "low";
   reasoning: string;
+}
+
+/** Extract email address from a "Name <email>" string */
+function extractEmail(from: string): string {
+  const match = from.match(/<(.+?)>/);
+  return match ? match[1].toLowerCase() : from.toLowerCase().trim();
 }
 
 export async function POST(request: Request) {
@@ -66,7 +74,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ processed: 0, total: 0, debug: { after, agentEmail: agent.email } });
     }
 
-    // Deduplicate
+    // Deduplicate against existing communications by gmail_message_id
     const messageIds = emails.map((e) => e.id);
     const { data: existing } = await admin
       .from("communications")
@@ -74,24 +82,67 @@ export async function POST(request: Request) {
       .eq("agent_id", agent.id)
       .in("gmail_message_id", messageIds);
 
-    const existingIds = new Set((existing || []).map((e: any) => e.gmail_message_id));
+    const existingIds = new Set((existing || []).map((e: { gmail_message_id: string }) => e.gmail_message_id));
     const newEmails = emails.filter((e) => !existingIds.has(e.id));
 
+    // Pre-fetch existing buyers for linking inbound emails
+    const { data: buyers } = await admin
+      .from("buyers")
+      .select("id, email, full_name")
+      .eq("agent_id", agent.id)
+      .eq("is_active", true);
+
+    const buyerByEmail = new Map<string, { id: string; full_name: string }>();
+    for (const buyer of buyers || []) {
+      if (buyer.email) {
+        buyerByEmail.set(buyer.email.toLowerCase(), { id: buyer.id, full_name: buyer.full_name });
+      }
+    }
+
+    // Pre-fetch existing lead emails to prevent duplicate lead creation
+    const { data: existingLeads } = await admin
+      .from("leads")
+      .select("email, source_communication_id")
+      .eq("agent_id", agent.id)
+      .in("status", ["draft", "confirmed"]);
+
+    const existingLeadEmails = new Set(
+      (existingLeads || [])
+        .map((l: { email: string | null }) => l.email?.toLowerCase())
+        .filter(Boolean)
+    );
+    const existingLeadCommIds = new Set(
+      (existingLeads || [])
+        .map((l: { source_communication_id: string | null }) => l.source_communication_id)
+        .filter(Boolean)
+    );
+
+    const useLLM = isLLMAvailable("email_classification");
     let processed = 0;
     const errors: string[] = [];
 
-    // Classify all emails in parallel, then insert
+    // Classify all emails in parallel
     const classifications = await Promise.all(
-      newEmails.map(async (email) => {
+      newEmails.map(async (email): Promise<ClassificationResult | null> => {
         try {
-          return await llmJSON<ClassificationResult>(
-            "email_classification",
-            EMAIL_CLASSIFICATION_PROMPT,
-            `Subject: ${email.subject}\nFrom: ${email.from}\nTo: ${email.to}\n\n${email.body.slice(0, 2000)}`
-          );
+          if (useLLM) {
+            return await llmJSON<ClassificationResult>(
+              "email_classification",
+              EMAIL_CLASSIFICATION_PROMPT,
+              `Subject: ${email.subject}\nFrom: ${email.from}\nTo: ${email.to}\n\n${email.body.slice(0, 2000)}`
+            );
+          }
+          // Keyword fallback
+          return classifyByKeywords(email.subject, email.body, email.from);
         } catch (llmError) {
-          errors.push(`LLM failed for "${email.subject}": ${llmError instanceof Error ? llmError.message : "unknown"}`);
-          return null;
+          // LLM failed — fall back to keyword classification
+          console.warn(`[email-scan] LLM failed for "${email.subject}", using keyword fallback:`, llmError);
+          try {
+            return classifyByKeywords(email.subject, email.body, email.from);
+          } catch {
+            errors.push(`Classification failed for "${email.subject}"`);
+            return null;
+          }
         }
       })
     );
@@ -100,6 +151,10 @@ export async function POST(request: Request) {
       const email = newEmails[i];
       const classification = classifications[i];
       try {
+        // Check if this inbound email is from an existing buyer
+        const senderEmail = extractEmail(email.from);
+        const matchedBuyer = email.direction === "inbound" ? buyerByEmail.get(senderEmail) : undefined;
+
         const { data: comm } = await admin
           .from("communications")
           .insert({
@@ -117,65 +172,111 @@ export async function POST(request: Request) {
             is_processed: !!classification,
             processed_at: new Date().toISOString(),
             occurred_at: email.date,
+            // Link to existing buyer if found
+            buyer_id: matchedBuyer?.id || null,
           })
           .select("id")
           .single();
 
+        // Create activity entry for non-noise inbound emails
         if (
           email.direction === "inbound" &&
           classification?.classification &&
           classification.classification !== "noise" &&
           comm
         ) {
-          await admin.from("activity_feed").insert({
-            agent_id: agent.id,
-            event_type: "email_received",
-            communication_id: comm.id,
-            title: `Email: ${email.subject || "(no subject)"}`,
-            description: `From ${email.from} — ${classification.classification.replace(/_/g, " ")}`,
-            metadata: {
+          const description = matchedBuyer
+            ? `From ${matchedBuyer.full_name} — ${classification.classification.replace(/_/g, " ")}`
+            : `From ${email.from} — ${classification.classification.replace(/_/g, " ")}`;
+
+          await createActivityEntry(
+            agent.id,
+            "email_received",
+            `Email: ${email.subject || "(no subject)"}`,
+            description,
+            {
               from: email.from,
               classification: classification.classification,
               confidence: classification.confidence,
             },
-            is_action_required:
-              classification.classification === "action_required" ||
-              classification.classification === "new_lead",
-          });
+            {
+              communicationId: comm.id,
+              buyerId: matchedBuyer?.id,
+              isActionRequired:
+                classification.classification === "action_required" ||
+                classification.classification === "new_lead",
+            }
+          );
         }
 
-        // Auto-create draft lead for new_lead emails
+        // Auto-create draft lead for new_lead emails (with duplicate prevention)
         if (classification?.classification === "new_lead" && comm) {
-          try {
-            let extractedInfo: Record<string, any> = {};
+          const senderAddr = extractEmail(email.from);
+
+          // Skip if this email is from an existing buyer
+          if (matchedBuyer) {
+            console.log(`[email-scan] Skipping lead creation — sender ${senderAddr} is existing buyer ${matchedBuyer.full_name}`);
+          }
+          // Skip if a lead already exists for this email address or communication
+          else if (existingLeadEmails.has(senderAddr) || existingLeadCommIds.has(comm.id)) {
+            console.log(`[email-scan] Skipping lead creation — lead already exists for ${senderAddr}`);
+          } else {
             try {
-              extractedInfo = await llmJSON(
-                "lead_classification",
-                LEAD_CLASSIFICATION_PROMPT,
-                email.body.slice(0, 3000)
+              let extractedInfo: Record<string, unknown> = {};
+              if (isLLMAvailable("lead_classification")) {
+                try {
+                  extractedInfo = await llmJSON(
+                    "lead_classification",
+                    LEAD_CLASSIFICATION_PROMPT,
+                    email.body.slice(0, 3000)
+                  );
+                } catch {
+                  // LLM extraction is optional — lead still created with basic info
+                }
+              }
+
+              const senderName = email.from.replace(/<.*>/, "").trim() || null;
+
+              await admin.from("leads").insert({
+                agent_id: agent.id,
+                source: "email",
+                status: "draft",
+                confidence: classification.confidence,
+                name: (extractedInfo.name as string) || senderName,
+                email: senderAddr,
+                phone: (extractedInfo.phone as string) || null,
+                raw_source_content: email.body.slice(0, 5000),
+                extracted_info: extractedInfo,
+                source_communication_id: comm.id,
+              });
+
+              // Track this email to prevent duplicates within the same scan batch
+              existingLeadEmails.add(senderAddr);
+              existingLeadCommIds.add(comm.id);
+
+              // Activity entry for lead detection
+              await createActivityEntry(
+                agent.id,
+                "lead_detected",
+                `New lead: ${(extractedInfo.name as string) || senderName || senderAddr}`,
+                `Detected from email: ${email.subject || "(no subject)"}`,
+                {
+                  leadName: (extractedInfo.name as string) || senderName || senderAddr,
+                  source: "email",
+                  email: senderAddr,
+                  phone: (extractedInfo.phone as string) || null,
+                  budget: (extractedInfo.budget as string) || null,
+                  area: (extractedInfo.area as string) || null,
+                  confidence: classification.confidence,
+                },
+                {
+                  communicationId: comm.id,
+                  isActionRequired: true,
+                }
               );
-            } catch {
-              // LLM extraction is optional
+            } catch (leadError) {
+              console.error("[email-scan] Failed to auto-create lead:", leadError);
             }
-
-            const senderName = email.from.replace(/<.*>/, "").trim() || null;
-            const senderEmailMatch = email.from.match(/<(.+?)>/);
-            const senderEmail = senderEmailMatch ? senderEmailMatch[1] : email.from;
-
-            await admin.from("leads").insert({
-              agent_id: agent.id,
-              source: "email",
-              status: "draft",
-              confidence: classification.confidence,
-              name: extractedInfo.name || senderName,
-              email: senderEmail,
-              phone: extractedInfo.phone || null,
-              raw_source_content: email.body.slice(0, 5000),
-              extracted_info: extractedInfo,
-              source_communication_id: comm.id,
-            });
-          } catch (leadError) {
-            console.error("[email-scan] Failed to auto-create lead:", leadError);
           }
         }
 
@@ -196,10 +297,19 @@ export async function POST(request: Request) {
       processed,
       total: newEmails.length,
       skipped: emails.length - newEmails.length,
+      usedLLM: useLLM,
       ...(errors.length > 0 ? { errors } : {}),
     });
   } catch (err) {
     console.error("Email scan error:", err);
+    const message = err instanceof Error ? err.message : "Failed to scan emails";
+    // Surface helpful error for Gmail disconnected
+    if (message.includes("Gmail not connected")) {
+      return NextResponse.json(
+        { error: "Gmail is not connected. Please connect Gmail in Settings." },
+        { status: 400 }
+      );
+    }
     return NextResponse.json(
       { error: "Failed to scan emails" },
       { status: 500 }

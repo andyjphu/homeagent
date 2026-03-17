@@ -65,12 +65,10 @@ function ComparisonRow({
 export function PropertyList({
   scores,
   commentsByProperty,
-  buyerId,
   dashboardToken,
 }: {
   scores: any[];
   commentsByProperty: Record<string, any[]>;
-  buyerId: string;
   dashboardToken: string;
 }) {
   const [compareIds, setCompareIds] = useState<Set<string>>(new Set());
@@ -102,7 +100,6 @@ export function PropertyList({
             property={score.properties}
             rank={index + 1}
             comments={commentsByProperty[score.property_id] || []}
-            buyerId={buyerId}
             dashboardToken={dashboardToken}
             isCompareSelected={compareIds.has(score.property_id)}
             onCompareToggle={() => toggleCompare(score.property_id)}
@@ -112,7 +109,7 @@ export function PropertyList({
 
       {/* Floating compare bar */}
       {compareIds.size >= 2 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-bottom-4 duration-300" style={{ bottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))" }}>
           <Button
             onClick={() => setCompareOpen(true)}
             size="lg"

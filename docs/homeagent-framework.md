@@ -1,4 +1,4 @@
-# HomeAgent — Complete Product Framework
+# FoyerFind — Complete Product Framework
 
 > **Read this first:** Phases 1–13 below describe the **long-term vision**, not the current product. Many phases reference Zillow scraping, full AI automation, and real-time call transcription that are not implemented and, in some cases, have been deliberately deprioritized. For current build priorities and what's actually being worked on, see [`CLAUDE.md`](../CLAUDE.md) in the project root and the [Strategic Addendum](#strategic-addendum-march-2026) at the end of this document.
 
@@ -524,7 +524,7 @@ The orchestration core is event-driven. Key events and what they trigger:
 
 → Contingency timeline appears. Inspection report uploaded → 40-page PDF analyzed in seconds → prioritized summary with negotiation strategy. Appraisal scenarios pre-computed.
 
-**"Every interaction — every email, every call, every click on the dashboard — makes the system smarter. Not just for this deal. For every deal Mike will ever do. That's HomeAgent."**
+**"Every interaction — every email, every call, every click on the dashboard — makes the system smarter. Not just for this deal. For every deal Mike will ever do. That's FoyerFind."**
 
 ---
 
@@ -542,7 +542,7 @@ Everything else is either a minimum viable stub or documented for future work. S
 ## Key Strategic Shifts
 
 ### AI is the accelerant, not the product
-The original pitch led with "AI-powered intelligence layer." This has been reframed. HomeAgent is a **workflow and productivity tool** for buyer's agents. AI features (property scoring, email classification, negotiation analysis) are optional enhancements that can be toggled on. The product must stand on its own without any LLM calls.
+The original pitch led with "AI-powered intelligence layer." This has been reframed. FoyerFind is a **workflow and productivity tool** for buyer's agents. AI features (property scoring, email classification, negotiation analysis) are optional enhancements that can be toggled on. The product must stand on its own without any LLM calls.
 
 **Rationale:** Competing on "AI" puts us against Rechat, LionDesk, kvCORE and every other CRM adding AI features. Competing on "the best command center for buyer's agents in a post-NAR world" is a more defensible position.
 
@@ -561,7 +561,7 @@ The 2024 NAR settlement requires buyer-broker agreements before showings and dec
 - Property curation with reasoning proves expertise
 - Deal tracking shows complexity being managed
 
-All feature design and marketing copy should frame HomeAgent as **the tool that helps agents prove their worth**, not "AI that replaces agent work."
+All feature design and marketing copy should frame FoyerFind as **the tool that helps agents prove their worth**, not "AI that replaces agent work."
 
 ## Competitive Landscape
 

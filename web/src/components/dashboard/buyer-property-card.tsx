@@ -19,7 +19,6 @@ import {
   ChevronUp,
   ExternalLink,
   Camera,
-  MapPin,
   Car,
   Train,
   Bike,
@@ -31,6 +30,8 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { EnrichmentBadges } from "@/components/enrichment/enrichment-badges";
+import { EnrichmentDetail } from "@/components/enrichment/enrichment-detail";
 
 function ScoreBar({
   label,
@@ -75,7 +76,6 @@ export function BuyerPropertyCard({
   property,
   rank,
   comments,
-  buyerId,
   dashboardToken,
   isCompareSelected,
   onCompareToggle,
@@ -84,7 +84,6 @@ export function BuyerPropertyCard({
   property: any;
   rank: number;
   comments: any[];
-  buyerId: string;
   dashboardToken: string;
   isCompareSelected: boolean;
   onCompareToggle: () => void;
@@ -149,44 +148,57 @@ export function BuyerPropertyCard({
   async function toggleFavorite() {
     const newValue = !isFavorited;
     setIsFavorited(newValue);
-    toast.success(newValue ? "Added to favorites" : "Removed from favorites");
 
-    await fetch(`/api/dashboard/${dashboardToken}/favorites`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        buyerId,
-        propertyId: property.id,
-        scoreId: score.id,
-        isFavorited: newValue,
-      }),
-    });
-  }
-
-  async function submitComment() {
-    if (!newComment.trim()) return;
-    setSubmitting(true);
-
-    const response = await fetch(
-      `/api/dashboard/${dashboardToken}/comments`,
-      {
+    try {
+      const res = await fetch(`/api/dashboard/${dashboardToken}/favorites`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          buyerId,
-          propertyId: property.id,
-          content: newComment.trim(),
+          scoreId: score.id,
+          isFavorited: newValue,
         }),
-      }
-    );
+      });
 
-    if (response.ok) {
-      const data = await response.json();
-      setLocalComments([data.comment, ...localComments]);
-      setNewComment("");
-      toast.success("Comment sent to your agent");
-    } else {
-      toast.error("Failed to submit comment");
+      if (!res.ok) throw new Error();
+      toast.success(newValue ? "Added to favorites" : "Removed from favorites");
+    } catch {
+      setIsFavorited(!newValue);
+      toast.error("Couldn't update favorite. Please try again.");
+    }
+  }
+
+  async function submitComment() {
+    const trimmed = newComment.trim();
+    if (!trimmed) return;
+    if (trimmed.length > 2000) {
+      toast.error("Comment is too long (max 2,000 characters)");
+      return;
+    }
+    setSubmitting(true);
+
+    try {
+      const response = await fetch(
+        `/api/dashboard/${dashboardToken}/comments`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            propertyId: property.id,
+            content: trimmed,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setLocalComments([data.comment, ...localComments]);
+        setNewComment("");
+        toast.success("Comment sent to your agent");
+      } else {
+        toast.error("Failed to submit comment");
+      }
+    } catch {
+      toast.error("Network error. Please check your connection and try again.");
     }
     setSubmitting(false);
   }
@@ -227,6 +239,34 @@ export function BuyerPropertyCard({
     !Array.isArray(property.commute_data)
       ? (property.commute_data as Record<string, any>)
       : null;
+
+  // Enrichment data from API enrichment service
+  const enrichment =
+    property.enrichment_data &&
+    typeof property.enrichment_data === "object" &&
+    !Array.isArray(property.enrichment_data)
+      ? (property.enrichment_data as Record<string, any>)
+      : null;
+
+  // Derive walkability (prefer enrichment data, fall back to legacy columns)
+  const walkScore = enrichment?.walkability?.walk_score ?? property.walk_score;
+  const transitScore = enrichment?.walkability?.transit_score ?? property.transit_score;
+  const bikeScore = enrichment?.walkability?.bike_score ?? null;
+
+  // Flood data from enrichment
+  const floodData = enrichment?.flood ?? null;
+
+  // Schools from enrichment (array of nearby schools)
+  const enrichmentSchools: any[] = enrichment?.schools?.nearby ?? [];
+
+  // Air quality
+  const airQuality = enrichment?.air_quality ?? null;
+
+  // Demographics
+  const demographics = enrichment?.demographics ?? null;
+
+  // Nearby amenities
+  const nearbyAmenities = enrichment?.amenities ?? null;
 
   return (
     <>
@@ -308,7 +348,7 @@ export function BuyerPropertyCard({
                 </span>
               </div>
               <span className="text-[10px] text-muted-foreground mt-0.5">
-                match
+                AI match
               </span>
             </div>
 
@@ -324,7 +364,9 @@ export function BuyerPropertyCard({
                   </p>
                 </div>
                 <p className="text-xl font-bold whitespace-nowrap">
-                  ${property.listing_price?.toLocaleString()}
+                  {property.listing_price != null
+                    ? `$${property.listing_price.toLocaleString()}`
+                    : "Price TBD"}
                 </p>
               </div>
 
@@ -335,6 +377,9 @@ export function BuyerPropertyCard({
                 )}
                 {property.sqft != null && (
                   <span>{property.sqft.toLocaleString()} sqft</span>
+                )}
+                {property.property_type && (
+                  <span className="capitalize">{property.property_type}</span>
                 )}
                 {property.year_built && (
                   <span>Built {property.year_built}</span>
@@ -348,9 +393,14 @@ export function BuyerPropertyCard({
 
           {/* Score reasoning */}
           {score.score_reasoning && (
-            <p className="text-sm bg-muted/50 p-3 rounded-lg text-muted-foreground leading-relaxed">
-              {score.score_reasoning}
-            </p>
+            <div className="bg-muted/50 p-3 rounded-lg">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                {score.score_breakdown?.source === "manual" ? "Agent analysis" : "AI-suggested analysis"}
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {score.score_reasoning}
+              </p>
+            </div>
           )}
 
           {/* Agent notes callout */}
@@ -365,16 +415,57 @@ export function BuyerPropertyCard({
 
           {/* Quick badges */}
           <div className="flex flex-wrap gap-1.5">
-            {property.walk_score != null && (
-              <Badge variant="outline" className="text-xs">
-                <Footprints className="h-3 w-3 mr-1" />
-                Walk: {property.walk_score}
+            {property.listing_status && property.listing_status !== "active" && (
+              <Badge
+                variant={property.listing_status === "pending" ? "default" : "secondary"}
+                className="text-xs capitalize"
+              >
+                {property.listing_status}
               </Badge>
             )}
-            {property.transit_score != null && (
+            {walkScore != null && (
+              <Badge variant="outline" className="text-xs">
+                <Footprints className="h-3 w-3 mr-1" />
+                Walk: {walkScore}
+              </Badge>
+            )}
+            {transitScore != null && (
               <Badge variant="outline" className="text-xs">
                 <Train className="h-3 w-3 mr-1" />
-                Transit: {property.transit_score}
+                Transit: {transitScore}
+              </Badge>
+            )}
+            {floodData && (
+              <Badge
+                variant="outline"
+                className={`text-xs ${
+                  floodData.risk_level === "high"
+                    ? "border-red-300 text-red-700"
+                    : floodData.risk_level === "moderate"
+                      ? "border-amber-300 text-amber-700"
+                      : ""
+                }`}
+              >
+                Flood: {floodData.risk_level ?? floodData.zone}
+              </Badge>
+            )}
+            {enrichmentSchools.length > 0 && (
+              <Badge variant="outline" className="text-xs">
+                {enrichmentSchools.length} school{enrichmentSchools.length !== 1 ? "s" : ""} nearby
+              </Badge>
+            )}
+            {airQuality && (
+              <Badge
+                variant="outline"
+                className={`text-xs ${
+                  airQuality.aqi > 100
+                    ? "border-red-300 text-red-700"
+                    : airQuality.aqi > 50
+                      ? "border-amber-300 text-amber-700"
+                      : ""
+                }`}
+              >
+                AQI: {airQuality.aqi}
               </Badge>
             )}
             {property.days_on_market != null && (
@@ -389,6 +480,13 @@ export function BuyerPropertyCard({
               </Badge>
             )}
           </div>
+
+          {/* Enrichment badges */}
+          <EnrichmentBadges
+            enrichmentData={property.enrichment_data}
+            walkScore={property.walk_score}
+            transitScore={property.transit_score}
+          />
 
           {/* Actions row */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -438,6 +536,35 @@ export function BuyerPropertyCard({
           {/* Expandable details */}
           {showDetails && (
             <div className="space-y-4 pt-3 border-t animate-in fade-in-0 slide-in-from-top-2 duration-200">
+              {/* Score breakdown */}
+              {score.score_breakdown &&
+                typeof score.score_breakdown === "object" &&
+                !Array.isArray(score.score_breakdown) &&
+                Object.keys(score.score_breakdown).filter(k => k !== "source").length > 0 &&
+                score.score_breakdown.source !== "manual" && (
+                  <div>
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                      AI-suggested match breakdown
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {Object.entries(
+                        score.score_breakdown as Record<string, number>
+                      ).map(
+                        ([key, val]) =>
+                          key !== "source" && typeof val === "number" && (
+                            <ScoreBar
+                              key={key}
+                              label={key
+                                .replace(/_/g, " ")
+                                .replace(/\b\w/g, (c) => c.toUpperCase())}
+                              value={val}
+                            />
+                          )
+                      )}
+                    </div>
+                  </div>
+                )}
+
               {/* Description */}
               {property.listing_description && (
                 <div>
@@ -471,31 +598,52 @@ export function BuyerPropertyCard({
               )}
 
               {/* Walk / Transit scores */}
-              {(property.walk_score != null ||
-                property.transit_score != null) && (
+              {(walkScore != null || transitScore != null || bikeScore != null) && (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
                     Walkability & Transit
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {property.walk_score != null && (
-                      <ScoreBar
-                        label="Walk Score"
-                        value={property.walk_score}
-                      />
+                    {walkScore != null && (
+                      <ScoreBar label="Walk Score" value={walkScore} />
                     )}
-                    {property.transit_score != null && (
-                      <ScoreBar
-                        label="Transit Score"
-                        value={property.transit_score}
-                      />
+                    {transitScore != null && (
+                      <ScoreBar label="Transit Score" value={transitScore} />
+                    )}
+                    {bikeScore != null && (
+                      <ScoreBar label="Bike Score" value={bikeScore} />
                     )}
                   </div>
                 </div>
               )}
 
-              {/* School ratings */}
-              {Object.keys(schoolRatings).length > 0 && (
+              {/* Schools — prefer enrichment data, fall back to legacy schoolRatings */}
+              {enrichmentSchools.length > 0 ? (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                    Nearby Schools
+                  </p>
+                  <div className="space-y-1.5">
+                    {enrichmentSchools.slice(0, 5).map((school: any, i: number) => (
+                      <div key={i} className="flex items-center gap-2 text-sm">
+                        {school.rating != null && (
+                          <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${schoolDotColor(school.rating)}`} />
+                        )}
+                        <span className="font-medium truncate">{school.name}</span>
+                        {school.type && (
+                          <span className="text-muted-foreground capitalize text-xs">{school.type}</span>
+                        )}
+                        {school.rating != null && (
+                          <span className="text-muted-foreground text-xs">({school.rating}/10)</span>
+                        )}
+                        {school.distance_mi != null && (
+                          <span className="text-muted-foreground text-xs ml-auto">{school.distance_mi} mi</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : Object.keys(schoolRatings).length > 0 ? (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
                     School Ratings
@@ -504,26 +652,91 @@ export function BuyerPropertyCard({
                     {Object.entries(schoolRatings).map(
                       ([type, data]: [string, any]) =>
                         data?.rating != null ? (
-                          <div
-                            key={type}
-                            className="flex items-center gap-2 text-sm"
-                          >
-                            <div
-                              className={`h-2.5 w-2.5 rounded-full shrink-0 ${schoolDotColor(
-                                data.rating
-                              )}`}
-                            />
-                            <span className="capitalize text-muted-foreground">
-                              {type}:
-                            </span>
-                            <span className="font-medium">
-                              {data.name}
-                            </span>
-                            <span className="text-muted-foreground">
-                              ({data.rating}/10)
-                            </span>
+                          <div key={type} className="flex items-center gap-2 text-sm">
+                            <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${schoolDotColor(data.rating)}`} />
+                            <span className="capitalize text-muted-foreground">{type}:</span>
+                            <span className="font-medium">{data.name}</span>
+                            <span className="text-muted-foreground">({data.rating}/10)</span>
                           </div>
                         ) : null
+                    )}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Flood risk */}
+              {floodData && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                    Flood Risk
+                  </p>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Badge
+                      variant="outline"
+                      className={`text-xs ${
+                        floodData.risk_level === "high"
+                          ? "border-red-300 text-red-700 bg-red-50"
+                          : floodData.risk_level === "moderate"
+                            ? "border-amber-300 text-amber-700 bg-amber-50"
+                            : "border-green-300 text-green-700 bg-green-50"
+                      }`}
+                    >
+                      {floodData.risk_level ?? "unknown"} risk
+                    </Badge>
+                    {floodData.zone && (
+                      <span className="text-muted-foreground">Zone {floodData.zone}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Demographics */}
+              {demographics && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                    Neighborhood
+                  </p>
+                  <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+                    {demographics.median_income != null && (
+                      <div>
+                        <span className="text-muted-foreground">Median Income: </span>
+                        <span className="font-medium">${demographics.median_income.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {demographics.owner_occupied_pct != null && (
+                      <div>
+                        <span className="text-muted-foreground">Owner-Occupied: </span>
+                        <span className="font-medium">{demographics.owner_occupied_pct}%</span>
+                      </div>
+                    )}
+                    {demographics.median_home_value != null && (
+                      <div>
+                        <span className="text-muted-foreground">Median Home: </span>
+                        <span className="font-medium">${demographics.median_home_value.toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Nearby amenities from enrichment */}
+              {nearbyAmenities && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                    Nearby Amenities
+                  </p>
+                  <div className="flex flex-wrap gap-2 text-sm">
+                    {nearbyAmenities.grocery_count > 0 && (
+                      <span>{nearbyAmenities.grocery_count} groceries</span>
+                    )}
+                    {nearbyAmenities.park_count > 0 && (
+                      <span>{nearbyAmenities.park_count} parks</span>
+                    )}
+                    {nearbyAmenities.restaurant_count > 0 && (
+                      <span>{nearbyAmenities.restaurant_count} restaurants</span>
+                    )}
+                    {nearbyAmenities.hospital_count > 0 && (
+                      <span>{nearbyAmenities.hospital_count} hospitals</span>
                     )}
                   </div>
                 </div>
@@ -651,9 +864,15 @@ export function BuyerPropertyCard({
                     </span>
                   </div>
                 )}
+                {property.mls_number && (
+                  <div>
+                    <span className="text-muted-foreground">MLS#: </span>
+                    <span className="font-medium">{property.mls_number}</span>
+                  </div>
+                )}
               </div>
 
-              {/* Zillow link */}
+              {/* Listing link */}
               {property.zillow_url && (
                 <a
                   href={property.zillow_url}
@@ -662,7 +881,7 @@ export function BuyerPropertyCard({
                   className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
-                  View on Zillow
+                  View listing
                 </a>
               )}
             </div>
@@ -687,17 +906,37 @@ export function BuyerPropertyCard({
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
-              {localComments.map((comment: any) => (
-                <div
-                  key={comment.id}
-                  className="bg-muted p-2.5 rounded-lg text-sm"
-                >
-                  <p>{comment.content}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {new Date(comment.created_at).toLocaleString()}
-                  </p>
-                </div>
-              ))}
+              {localComments.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-2">
+                  No comments yet. Share your thoughts with your agent.
+                </p>
+              )}
+              {localComments.map((comment: any) => {
+                const isAgent = !!comment.agent_id;
+                return (
+                  <div
+                    key={comment.id}
+                    className={`p-2.5 rounded-lg text-sm ${
+                      isAgent
+                        ? "bg-primary/5 border border-primary/20"
+                        : "bg-muted"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Badge
+                        variant={isAgent ? "default" : "secondary"}
+                        className="text-[10px] px-1.5 py-0"
+                      >
+                        {isAgent ? "Your Agent" : "You"}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(comment.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <p>{comment.content}</p>
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -705,7 +944,7 @@ export function BuyerPropertyCard({
 
       {/* Photo gallery dialog */}
       <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh]">
+        <DialogContent className="max-w-3xl max-h-[90vh] sm:max-h-[90vh] w-[calc(100vw-2rem)] sm:w-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between pr-8">
               <span className="truncate">{property.address}</span>
@@ -717,18 +956,40 @@ export function BuyerPropertyCard({
             </DialogTitle>
           </DialogHeader>
           {photos.length > 0 && (
-            <div className="relative">
+            <div
+              className="relative touch-pan-y"
+              onTouchStart={(e) => {
+                const touch = e.touches[0];
+                (e.currentTarget as any)._swipeX = touch.clientX;
+              }}
+              onTouchEnd={(e) => {
+                const startX = (e.currentTarget as any)._swipeX;
+                if (startX == null) return;
+                const endX = e.changedTouches[0].clientX;
+                const diff = startX - endX;
+                if (Math.abs(diff) > 50 && photos.length > 1) {
+                  if (diff > 0) {
+                    setGalleryIndex((i) => (i + 1) % photos.length);
+                  } else {
+                    setGalleryIndex(
+                      (i) => (i - 1 + photos.length) % photos.length
+                    );
+                  }
+                }
+              }}
+            >
               <img
                 src={photos[galleryIndex]}
                 alt={`Photo ${galleryIndex + 1}`}
-                className="w-full rounded-lg object-contain max-h-[60vh]"
+                className="w-full rounded-lg object-contain max-h-[60vh] select-none"
+                draggable={false}
               />
               {photos.length > 1 && (
                 <>
                   <Button
                     variant="outline"
                     size="icon"
-                    className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm hidden sm:flex"
                     onClick={() =>
                       setGalleryIndex(
                         (i) =>
@@ -741,7 +1002,7 @@ export function BuyerPropertyCard({
                   <Button
                     variant="outline"
                     size="icon"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm hidden sm:flex"
                     onClick={() =>
                       setGalleryIndex(
                         (i) => (i + 1) % photos.length
@@ -777,8 +1038,8 @@ export function BuyerPropertyCard({
             </div>
           )}
           {/* Gallery footer */}
-          <div className="flex items-center justify-between pt-2">
-            {property.zillow_url ? (
+          {property.zillow_url && (
+            <div className="pt-2">
               <a
                 href={property.zillow_url}
                 target="_blank"
@@ -786,16 +1047,10 @@ export function BuyerPropertyCard({
                 className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
-                View on Zillow
+                View listing
               </a>
-            ) : (
-              <div />
-            )}
-            <Button variant="outline" size="sm" disabled>
-              <MapPin className="h-4 w-4 mr-1" />
-              Request Tour
-            </Button>
-          </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>

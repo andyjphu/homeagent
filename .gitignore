@@ -73,6 +73,9 @@ htmlcov/
 # Supabase
 web/supabase/.temp/
 
+# Claude Code
+.claude/
+
 # Misc
 *.bak
 *.tmp

@@ -122,7 +122,12 @@ function DealCard({ deal }: { deal: any }) {
                   <p className="text-xs text-muted-foreground">probability</p>
                 </div>
               )}
-              {deal.closing_date && (
+              {deal.closed_at && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Closed: {new Date(deal.closed_at).toLocaleDateString()}
+                </p>
+              )}
+              {!deal.closed_at && deal.closing_date && (
                 <p className="text-xs text-muted-foreground mt-1">
                   Close: {new Date(deal.closing_date).toLocaleDateString()}
                 </p>

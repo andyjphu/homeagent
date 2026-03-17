@@ -21,6 +21,7 @@ export async function POST(
 
   const { propertyId, action, durationSeconds } = await request.json();
 
+  const VALID_ACTIONS = ["view", "click", "dwell"];
   if (!propertyId || !action) {
     return NextResponse.json(
       { error: "propertyId and action required" },
@@ -28,12 +29,27 @@ export async function POST(
     );
   }
 
-  // Get current score record
+  if (!VALID_ACTIONS.includes(action)) {
+    return NextResponse.json(
+      { error: `action must be one of: ${VALID_ACTIONS.join(", ")}` },
+      { status: 400 }
+    );
+  }
+
+  if (action === "dwell" && (typeof durationSeconds !== "number" || durationSeconds < 0 || durationSeconds > 3600)) {
+    return NextResponse.json(
+      { error: "durationSeconds must be a number between 0 and 3600" },
+      { status: 400 }
+    );
+  }
+
+  // Get current score record — also verifies property belongs to this buyer
   const { data: score } = await supabase
     .from("buyer_property_scores")
     .select("id, view_count, total_dwell_seconds")
     .eq("buyer_id", buyer.id)
     .eq("property_id", propertyId)
+    .eq("is_sent_to_buyer", true)
     .single();
 
   if (!score) {

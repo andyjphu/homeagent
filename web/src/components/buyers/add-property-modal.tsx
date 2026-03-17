@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Plus, Check } from "lucide-react";
+import { Loader2, Plus, Check, X } from "lucide-react";
 
 interface AddPropertyModalProps {
   open: boolean;
@@ -46,6 +46,10 @@ export function AddPropertyModal({
   const [propertyType, setPropertyType] = useState("");
   const [listingDescription, setListingDescription] = useState("");
   const [listingUrl, setListingUrl] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [agentNotes, setAgentNotes] = useState("");
+  const [autoEnrich, setAutoEnrich] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,10 +69,26 @@ export function AddPropertyModal({
       setPropertyType("");
       setListingDescription("");
       setListingUrl("");
+      setPhotoUrl("");
+      setPhotos([]);
+      setAgentNotes("");
+      setAutoEnrich(true);
       setSaved(false);
       setError(null);
     }
   }, [open]);
+
+  const addPhoto = () => {
+    const url = photoUrl.trim();
+    if (url && !photos.includes(url)) {
+      setPhotos([...photos, url]);
+      setPhotoUrl("");
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotos(photos.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async () => {
     if (!address.trim()) {
@@ -98,6 +118,8 @@ export function AddPropertyModal({
           propertyType: propertyType || undefined,
           listingDescription: listingDescription.trim() || undefined,
           listingUrl: listingUrl.trim() || undefined,
+          photos: photos.length > 0 ? photos : undefined,
+          agentNotes: agentNotes.trim() || undefined,
         }),
       });
 
@@ -110,6 +132,14 @@ export function AddPropertyModal({
       }
 
       setSaved(true);
+
+      // Auto-enrich if checked
+      if (autoEnrich && data.property?.id) {
+        fetch(`/api/properties/${data.property.id}/enrich`, {
+          method: "POST",
+        }).catch(() => {});
+      }
+
       setTimeout(() => {
         onOpenChange(false);
         window.dispatchEvent(new Event("properties-updated"));
@@ -258,14 +288,86 @@ export function AddPropertyModal({
             </div>
           </div>
 
+          {/* Photos */}
+          <div className="space-y-1">
+            <Label className="text-xs">Photo URLs</Label>
+            <div className="flex gap-2">
+              <Input
+                value={photoUrl}
+                onChange={(e) => setPhotoUrl(e.target.value)}
+                placeholder="Paste image URL..."
+                className="text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addPhoto();
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addPhoto}
+                disabled={!photoUrl.trim()}
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
+            </div>
+            {photos.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {photos.map((url, i) => (
+                  <span
+                    key={i}
+                    className="inline-flex items-center gap-1 text-xs bg-muted px-2 py-0.5 rounded max-w-[200px]"
+                  >
+                    <span className="truncate">{url.split("/").pop()}</span>
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(i)}
+                      className="shrink-0 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="space-y-1">
             <Label className="text-xs">Description</Label>
             <Textarea
               value={listingDescription}
               onChange={(e) => setListingDescription(e.target.value)}
-              placeholder="Property description or agent notes..."
-              className="text-sm min-h-[80px] resize-y"
+              placeholder="Property description..."
+              className="text-sm min-h-[60px] resize-y"
             />
+          </div>
+
+          {/* Agent notes */}
+          <div className="space-y-1">
+            <Label className="text-xs">Agent Notes (visible to buyer)</Label>
+            <Textarea
+              value={agentNotes}
+              onChange={(e) => setAgentNotes(e.target.value)}
+              placeholder="Why you picked this property for the buyer..."
+              className="text-sm min-h-[60px] resize-y"
+            />
+          </div>
+
+          {/* Auto-enrich checkbox */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="auto-enrich"
+              checked={autoEnrich}
+              onChange={(e) => setAutoEnrich(e.target.checked)}
+              className="h-4 w-4 rounded border-input"
+            />
+            <Label htmlFor="auto-enrich" className="text-xs cursor-pointer">
+              Auto-enrich with neighborhood data
+            </Label>
           </div>
 
           {error && <p className="text-xs text-destructive">{error}</p>}

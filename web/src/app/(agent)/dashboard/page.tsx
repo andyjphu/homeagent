@@ -1,23 +1,29 @@
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   UserPlus,
   AlertCircle,
   Briefcase,
   CheckCircle,
   Users,
-  Building2,
-  TrendingUp,
   Clock,
-  Phone,
 } from "lucide-react";
 import Link from "next/link";
+import { NewLeadsSection } from "@/components/dashboard/new-leads-section";
+import { ActiveBuyersSection } from "@/components/dashboard/active-buyers-section";
+import { DashboardScanBar } from "@/components/dashboard/dashboard-scan-bar";
+import {
+  StatsRowSkeleton,
+  LeadsSkeleton,
+  BuyersSkeleton,
+  DealsSkeleton,
+} from "@/components/dashboard/dashboard-skeleton";
 
 export default async function DashboardPage() {
-  const supabase = await createClient() as any;
+  const supabase = (await createClient()) as any;
 
   const {
     data: { user },
@@ -36,9 +42,11 @@ export default async function DashboardPage() {
     { data: draftLeads, count: draftLeadCount },
     { data: buyers },
     { data: activeDeals },
-    { data: closedDeals },
+    { count: closedDealCount },
     { data: actionItems },
     { data: runningTasks },
+    { data: propertyScores },
+    { data: buyerDeals },
   ] = await Promise.all([
     supabase
       .from("leads")
@@ -61,7 +69,7 @@ export default async function DashboardPage() {
       .order("updated_at", { ascending: false }),
     supabase
       .from("deals")
-      .select("*", { count: "exact" })
+      .select("*", { count: "exact", head: true })
       .eq("agent_id", agent.id)
       .eq("stage", "closed"),
     supabase
@@ -77,12 +85,50 @@ export default async function DashboardPage() {
       .select("*")
       .eq("agent_id", agent.id)
       .in("status", ["queued", "running"]),
+    // Fetch property scores for counting per buyer
+    supabase
+      .from("buyer_property_scores")
+      .select("buyer_id, is_sent_to_buyer")
+      .eq("is_sent_to_buyer", true),
+    // Fetch active deals for buyer deal stage
+    supabase
+      .from("deals")
+      .select("buyer_id, stage")
+      .eq("agent_id", agent.id)
+      .not("stage", "in", '("closed","dead")'),
   ]);
 
-  const temperatureCounts = {
-    hot: buyers?.filter((b) => b.temperature === "hot").length ?? 0,
-    warm: buyers?.filter((b) => b.temperature === "warm").length ?? 0,
-    cool: buyers?.filter((b) => b.temperature === "cool").length ?? 0,
+  // Build buyer enrichment maps
+  const propertyCountMap: Record<string, number> = {};
+  propertyScores?.forEach((score: any) => {
+    propertyCountMap[score.buyer_id] =
+      (propertyCountMap[score.buyer_id] || 0) + 1;
+  });
+
+  const dealStageMap: Record<string, string> = {};
+  buyerDeals?.forEach((deal: any) => {
+    // Keep the most advanced deal stage per buyer
+    if (!dealStageMap[deal.buyer_id]) {
+      dealStageMap[deal.buyer_id] = deal.stage;
+    }
+  });
+
+  // Enrich buyers with property count and deal stage
+  const enrichedBuyers = (buyers || []).map((buyer: any) => ({
+    ...buyer,
+    property_count: propertyCountMap[buyer.id] || 0,
+    deal_stage: dealStageMap[buyer.id] || null,
+  }));
+
+  const stageColors: Record<string, string> = {
+    prospecting: "bg-blue-500/10 text-blue-700",
+    touring: "bg-purple-500/10 text-purple-700",
+    pre_offer: "bg-orange-500/10 text-orange-700",
+    negotiating: "bg-amber-500/10 text-amber-700",
+    under_contract: "bg-green-500/10 text-green-700",
+    inspection: "bg-cyan-500/10 text-cyan-700",
+    appraisal: "bg-teal-500/10 text-teal-700",
+    closing: "bg-emerald-500/10 text-emerald-700",
   };
 
   return (
@@ -119,7 +165,7 @@ export default async function DashboardPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{buyers?.length ?? 0}</p>
-                <p className="text-xs text-muted-foreground">Active Buyers</p>
+                <p className="text-xs text-muted-foreground">Active Clients</p>
               </div>
             </div>
           </CardContent>
@@ -131,7 +177,9 @@ export default async function DashboardPage() {
                 <Briefcase className="h-5 w-5 text-orange-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{activeDeals?.length ?? 0}</p>
+                <p className="text-2xl font-bold">
+                  {activeDeals?.length ?? 0}
+                </p>
                 <p className="text-xs text-muted-foreground">Active Deals</p>
               </div>
             </div>
@@ -144,7 +192,7 @@ export default async function DashboardPage() {
                 <CheckCircle className="h-5 w-5 text-emerald-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{closedDeals?.length ?? 0}</p>
+                <p className="text-2xl font-bold">{closedDealCount ?? 0}</p>
                 <p className="text-xs text-muted-foreground">Closed Deals</p>
               </div>
             </div>
@@ -152,71 +200,17 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      {/* New Leads section */}
-      {(draftLeadCount ?? 0) > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <UserPlus className="h-5 w-5" />
-                New Leads
-                <Badge variant="destructive">{draftLeadCount}</Badge>
-              </CardTitle>
-              <Link href="/leads">
-                <Button variant="ghost" size="sm">
-                  View All
-                </Button>
-              </Link>
-            </div>
-            <CardDescription>
-              Review and confirm new leads to start researching
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {draftLeads?.map((lead) => (
-                <div
-                  key={lead.id}
-                  className="flex items-center justify-between rounded-lg border p-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <Badge
-                      variant={
-                        lead.confidence === "high"
-                          ? "default"
-                          : lead.confidence === "medium"
-                          ? "secondary"
-                          : "outline"
-                      }
-                    >
-                      {lead.confidence}
-                    </Badge>
-                    <div>
-                      <p className="font-medium">
-                        {lead.name || "Unknown Contact"}
-                      </p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        {lead.source === "call" && (
-                          <Phone className="h-3 w-3" />
-                        )}
-                        via {lead.source} &middot;{" "}
-                        {new Date(lead.detected_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Link href={`/leads/${lead.id}`}>
-                      <Button size="sm" variant="default">
-                        Review
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Email Lead Detection */}
+      <DashboardScanBar
+        gmailConnected={agent.gmail_connected}
+        lastScanAt={agent.gmail_last_scan_at}
+      />
+
+      {/* New Leads — interactive client component */}
+      <NewLeadsSection
+        leads={draftLeads || []}
+        totalCount={draftLeadCount ?? 0}
+      />
 
       {/* Action Required */}
       {(actionItems?.length ?? 0) > 0 && (
@@ -230,20 +224,20 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {actionItems?.map((item) => (
+              {actionItems?.map((item: any) => (
                 <div
                   key={item.id}
                   className="flex items-center justify-between rounded-lg border p-3"
                 >
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm font-medium">{item.title}</p>
                     {item.description && (
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground truncate">
                         {item.description}
                       </p>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground whitespace-nowrap">
+                  <p className="text-xs text-muted-foreground whitespace-nowrap ml-3">
                     {new Date(item.occurred_at).toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
@@ -272,31 +266,41 @@ export default async function DashboardPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {(!activeDeals || activeDeals.length === 0) ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              No active deals yet. Confirm a lead and start researching properties.
-            </p>
+          {!activeDeals || activeDeals.length === 0 ? (
+            <div className="py-10 text-center">
+              <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                <Briefcase className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <h3 className="font-medium text-sm mb-1">No active deals</h3>
+              <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                Deals appear here when you start working on a property for a
+                buyer.
+              </p>
+            </div>
           ) : (
             <div className="space-y-2">
               {activeDeals.map((deal: any) => (
                 <Link
                   key={deal.id}
                   href={`/deals/${deal.id}`}
-                  className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent transition-colors"
+                  className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent/50 transition-colors"
                 >
-                  <div className="flex items-center gap-3">
-                    <div>
-                      <p className="font-medium">{deal.buyers?.full_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {deal.properties?.address}
-                      </p>
-                    </div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm">
+                      {deal.buyers?.full_name}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {deal.properties?.address}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">
+                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                    <Badge
+                      variant="outline"
+                      className={`text-xs capitalize ${stageColors[deal.stage] || ""}`}
+                    >
                       {deal.stage.replace(/_/g, " ")}
                     </Badge>
-                    {deal.deal_probability && (
+                    {deal.deal_probability != null && (
                       <span className="text-xs text-muted-foreground">
                         {deal.deal_probability}%
                       </span>
@@ -309,74 +313,8 @@ export default async function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Active Buyers */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Client Portfolio
-            </CardTitle>
-            <div className="flex items-center gap-2 text-xs">
-              <span className="flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-red-500" />
-                {temperatureCounts.hot} hot
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-orange-500" />
-                {temperatureCounts.warm} warm
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-blue-500" />
-                {temperatureCounts.cool} cool
-              </span>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {(!buyers || buyers.length === 0) ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              No active buyers yet.{" "}
-              <Link href="/leads" className="text-primary hover:underline">
-                Add a lead
-              </Link>{" "}
-              to get started.
-            </p>
-          ) : (
-            <div className="grid gap-2 md:grid-cols-2">
-              {buyers.map((buyer) => (
-                <Link
-                  key={buyer.id}
-                  href={`/buyers/${buyer.id}`}
-                  className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent transition-colors"
-                >
-                  <div>
-                    <p className="font-medium">{buyer.full_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      via {buyer.source}
-                      {buyer.last_activity_at &&
-                        ` · active ${new Date(
-                          buyer.last_activity_at
-                        ).toLocaleDateString()}`}
-                    </p>
-                  </div>
-                  <Badge
-                    variant={
-                      buyer.temperature === "hot"
-                        ? "destructive"
-                        : buyer.temperature === "warm"
-                        ? "secondary"
-                        : "outline"
-                    }
-                  >
-                    {buyer.temperature}
-                  </Badge>
-                </Link>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Active Buyers — interactive client component */}
+      <ActiveBuyersSection buyers={enrichedBuyers} />
 
       {/* Running Tasks */}
       {(runningTasks?.length ?? 0) > 0 && (
@@ -389,13 +327,13 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {runningTasks?.map((task) => (
+              {runningTasks?.map((task: any) => (
                 <div
                   key={task.id}
                   className="flex items-center justify-between rounded-lg border p-3"
                 >
                   <div>
-                    <p className="text-sm font-medium">
+                    <p className="text-sm font-medium capitalize">
                       {task.task_type.replace(/_/g, " ")}
                     </p>
                     <p className="text-xs text-muted-foreground">
@@ -406,7 +344,9 @@ export default async function DashboardPage() {
                     </p>
                   </div>
                   <Badge
-                    variant={task.status === "running" ? "default" : "secondary"}
+                    variant={
+                      task.status === "running" ? "default" : "secondary"
+                    }
                   >
                     {task.status}
                   </Badge>

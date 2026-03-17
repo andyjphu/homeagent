@@ -5,7 +5,7 @@ export async function POST() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
   // Look up agent name for personalized greeting
-  let agentName = "HomeAgent";
+  let agentName = "FoyerFind";
   try {
     const admin = createAdminClient() as any;
     const { data: agent } = await admin

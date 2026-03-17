@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { llmJSON } from "@/lib/llm/router";
+import { llmJSON, isLLMAvailable } from "@/lib/llm/router";
 import { OFFER_STRATEGY_PROMPT } from "@/lib/llm/prompts/offer-strategy";
+import { createActivityEntry } from "@/lib/supabase/activity";
 
 export async function POST(
   request: Request,
@@ -27,6 +28,13 @@ export async function POST(
 
   if (!deal) {
     return NextResponse.json({ error: "Deal not found" }, { status: 404 });
+  }
+
+  if (!isLLMAvailable("offer_strategy")) {
+    return NextResponse.json(
+      { error: "AI not configured. Set up CEREBRAS_API_KEY or GEMINI_API_KEY in your environment to enable AI strategy generation." },
+      { status: 503 }
+    );
   }
 
   const buyer = deal.buyers as any;
@@ -100,6 +108,24 @@ ${listingAgent ? `LISTING AGENT:
       deal_probability: strategy.deal_probability,
     })
     .eq("id", dealId);
+
+  // Log activity
+  const { data: agentData } = await supabase
+    .from("agents")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (agentData) {
+    await createActivityEntry(
+      agentData.id,
+      "offer_submitted",
+      `Offer strategy generated for ${property.address}`,
+      `Deal probability: ${strategy.deal_probability ?? "N/A"}%`,
+      { deal_probability: strategy.deal_probability },
+      { dealId, buyerId: buyer.id, propertyId: property.id }
+    );
+  }
 
   return NextResponse.json({ strategy });
 }

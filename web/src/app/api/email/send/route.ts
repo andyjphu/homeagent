@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthedClient } from "@/lib/gmail/tokens";
 import { sendEmail } from "@/lib/gmail/send";
+import { createActivityEntry } from "@/lib/supabase/activity";
 
 export async function POST(request: Request) {
   const supabase = await createClient() as any;
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
     });
 
     // Store in communications table
-    await admin.from("communications").insert({
+    const { data: comm } = await admin.from("communications").insert({
       agent_id: agent.id,
       type: "email",
       direction: "outbound",
@@ -58,12 +59,22 @@ export async function POST(request: Request) {
       occurred_at: new Date().toISOString(),
       is_processed: true,
       processed_at: new Date().toISOString(),
-    });
+    }).select("id").single();
+
+    // Log activity for email sent
+    await createActivityEntry(
+      agent.id,
+      "email_sent",
+      `Email sent: ${subject}`,
+      `To ${to}`,
+      { to, subject },
+      { communicationId: comm?.id }
+    );
 
     return NextResponse.json({ ok: true, messageId });
-  } catch (err: any) {
+  } catch (err) {
     console.error("[email-send] error:", err);
-    const msg = err?.message || "Failed to send email";
+    const msg = err instanceof Error ? err.message : "Failed to send email";
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

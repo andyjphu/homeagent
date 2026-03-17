@@ -59,7 +59,7 @@ Currently using:
 https://www.googleapis.com/auth/gmail.readonly
 ```
 
-**If we add sending capability** (reply from HomeAgent, future feature), we'll need:
+**If we add sending capability** (reply from FoyerFind, future feature), we'll need:
 ```
 https://www.googleapis.com/auth/gmail.send
 ```

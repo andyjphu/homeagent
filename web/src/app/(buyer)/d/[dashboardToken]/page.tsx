@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createActivityEntry } from "@/lib/supabase/activity";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,6 +10,9 @@ import Link from "next/link";
 import { FilterPanel } from "@/components/dashboard/filter-panel";
 import { DealTimeline } from "@/components/dashboard/deal-timeline";
 import { PropertyList } from "@/components/dashboard/property-list";
+import { BuyerSearchListings } from "@/components/dashboard/buyer-search-listings";
+import { BuyerResearch } from "@/components/dashboard/buyer-research";
+import { BuyerDashboardPoller } from "@/components/dashboard/buyer-poller";
 
 function PropertyListSkeleton() {
   return (
@@ -87,7 +91,6 @@ async function PropertySection({
     <PropertyList
       scores={scores}
       commentsByProperty={commentsByProperty}
-      buyerId={buyerId}
       dashboardToken={dashboardToken}
     />
   );
@@ -110,7 +113,7 @@ export default async function BuyerDashboardPage({
 
   if (!buyer) notFound();
 
-  // Update visit count
+  // Update visit count and log dashboard view for agent intelligence
   await supabase
     .from("buyers")
     .update({
@@ -119,15 +122,33 @@ export default async function BuyerDashboardPage({
     })
     .eq("id", buyer.id);
 
-  // Fetch active deals
+  await createActivityEntry(
+    buyer.agent_id,
+    "dashboard_viewed",
+    `${buyer.full_name} viewed their dashboard`,
+    `Visit #${(buyer.dashboard_visit_count ?? 0) + 1}`,
+    undefined,
+    { buyerId: buyer.id }
+  );
+
+  // Fetch deals at negotiating stage or later — buyers see progress once things get serious
+  const VISIBLE_DEAL_STAGES = [
+    "negotiating",
+    "under_contract",
+    "inspection",
+    "appraisal",
+    "closing",
+    "closed",
+  ];
   const { data: deals } = await supabase
     .from("deals")
     .select("*, properties(*)")
     .eq("buyer_id", buyer.id)
-    .not("stage", "in", '("closed","dead")');
+    .in("stage", VISIBLE_DEAL_STAGES);
 
   const intent = (buyer.intent_profile || {}) as any;
   const agentName = (buyer.agents as any)?.full_name;
+  const searchAvailable = !!process.env.RAPIDAPI_KEY;
 
   // Format last updated timestamp
   const lastUpdated = buyer.updated_at
@@ -140,6 +161,7 @@ export default async function BuyerDashboardPage({
 
   return (
     <div className="min-h-screen bg-background">
+      <BuyerDashboardPoller />
       {/* Header with subtle gradient accent */}
       <header className="border-b bg-card relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5" />
@@ -150,7 +172,7 @@ export default async function BuyerDashboardPage({
                 <Building2 className="h-4 w-4 text-primary-foreground" />
               </div>
               <div>
-                <p className="font-semibold text-sm">HomeAgent</p>
+                <p className="font-semibold text-sm">FoyerFind</p>
                 <p className="text-xs text-muted-foreground">
                   Your Home Search
                   {agentName && (
@@ -177,7 +199,7 @@ export default async function BuyerDashboardPage({
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-2xl mx-auto px-4 py-6 space-y-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
         {/* Deal timeline */}
         {deals && deals.length > 0 && <DealTimeline deal={deals[0]} />}
 
@@ -203,14 +225,23 @@ export default async function BuyerDashboardPage({
 
         {/* Filter panel */}
         <FilterPanel
-          buyerId={buyer.id}
           dashboardToken={dashboardToken}
           intentProfile={intent}
         />
 
+        {/* AI Research section */}
+        <BuyerResearch dashboardToken={dashboardToken} />
+
         {/* Property list */}
         <div>
-          <h2 className="text-xl font-bold mb-4">Your Properties</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold">Your Properties</h2>
+            <BuyerSearchListings
+              dashboardToken={dashboardToken}
+              intentProfile={intent}
+              searchAvailable={searchAvailable}
+            />
+          </div>
           <Suspense fallback={<PropertyListSkeleton />}>
             <PropertySection
               buyerId={buyer.id}

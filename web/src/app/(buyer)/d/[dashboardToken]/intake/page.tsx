@@ -33,7 +33,7 @@ export default async function IntakeFormPage({
                 <Building2 className="h-4 w-4 text-primary-foreground" />
               </div>
               <div>
-                <p className="font-semibold text-sm">HomeAgent</p>
+                <p className="font-semibold text-sm">FoyerFind</p>
                 <p className="text-xs text-muted-foreground">
                   Home Search Questionnaire
                   {agentName && (

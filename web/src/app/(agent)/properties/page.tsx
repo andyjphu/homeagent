@@ -27,11 +27,14 @@ export default async function PropertiesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Properties</h1>
-        <p className="text-muted-foreground">
-          {properties?.length ?? 0} properties across all buyers
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Properties</h1>
+          <p className="text-muted-foreground">
+            {properties?.length ?? 0} properties across all buyers
+          </p>
+        </div>
+        {/* Search Listings and AI Research are available per-client in the Properties tab */}
       </div>
 
       {(!properties || properties.length === 0) ? (
@@ -39,7 +42,7 @@ export default async function PropertiesPage() {
           <CardContent className="py-12 text-center">
             <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">
-              No properties yet. Add properties from a buyer&apos;s page or run research.
+              No properties yet. Go to a buyer&apos;s page and use <strong>Search Listings</strong> in the Properties tab to find properties via MLS.
             </p>
           </CardContent>
         </Card>
@@ -95,7 +98,7 @@ export default async function PropertiesPage() {
                       rel="noopener noreferrer"
                       className="text-xs text-primary hover:underline inline-flex items-center gap-1"
                     >
-                      Zillow <ExternalLink className="h-3 w-3" />
+                      Listing <ExternalLink className="h-3 w-3" />
                     </a>
                   )}
                   {buyerNames.length > 0 && (

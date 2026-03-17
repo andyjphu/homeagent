@@ -1,8 +1,8 @@
-# HomeAgent
+# FoyerFind
 
 **The command center for buyer's agents.**
 
-HomeAgent helps real estate buyer's agents manage their entire client workflow — from first lead to closing day — while giving buyers a private, transparent dashboard to track their home search.
+FoyerFind helps real estate buyer's agents manage their entire client workflow — from first lead to closing day — while giving buyers a private, transparent dashboard to track their home search.
 
 ## The Problem
 
@@ -12,7 +12,7 @@ Meanwhile, agents juggle 8-15 active buyers using scattered tools — spreadshee
 
 ## The Solution
 
-HomeAgent gives agents two things:
+FoyerFind gives agents two things:
 
 ### 1. Agent Command Center
 A single dashboard where the agent manages everything:
@@ -56,7 +56,7 @@ Agent signs up → Adds buyers → Curates properties → Sends dashboard link
 ## Project Structure
 
 ```
-homeagent/
+foyerfind/
 ├── web/                          # Next.js frontend
 │   ├── src/app/(agent)/          #   Agent dashboard (protected)
 │   ├── src/app/(buyer)/          #   Buyer dashboard (token-based)
@@ -82,8 +82,8 @@ homeagent/
 
 ```bash
 # Clone
-git clone https://github.com/andyjphu/homeagent.git
-cd homeagent
+git clone https://github.com/andyjphu/foyerfind.git
+cd foyerfind
 
 # Install frontend dependencies
 cd web && npm install
@@ -136,7 +136,7 @@ uvicorn main:app --reload --port 8000
 
 ## AI Features (Optional)
 
-HomeAgent works fully without AI. When API keys are configured, optional AI enhancements become available:
+FoyerFind works fully without AI. When API keys are configured, optional AI enhancements become available:
 
 - **Property match scoring** — LLM compares buyer preferences against property data and suggests a 0-100 match score (clearly labeled as "AI-suggested", always overridable by the agent)
 - **Email classification** — categorizes incoming emails as new leads, deal-relevant, or noise

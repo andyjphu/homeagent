@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { llmJSON } from "@/lib/llm/router";
+import { llmJSON, isLLMAvailable } from "@/lib/llm/router";
 import { LEAD_CLASSIFICATION_PROMPT } from "@/lib/llm/prompts/lead-classification";
+import { createActivityEntry } from "@/lib/supabase/activity";
 
 export async function POST(request: Request) {
   const supabase = await createClient() as any;
@@ -41,15 +42,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Lead already exists for this email", leadId: existingLead.id }, { status: 409 });
   }
 
-  let extractedInfo: Record<string, any> = {};
-  try {
-    extractedInfo = await llmJSON(
-      "lead_classification",
-      LEAD_CLASSIFICATION_PROMPT,
-      (comm.raw_content || "").slice(0, 3000)
-    );
-  } catch {
-    // LLM extraction is optional
+  let extractedInfo: Record<string, unknown> = {};
+  if (isLLMAvailable("lead_classification")) {
+    try {
+      extractedInfo = await llmJSON(
+        "lead_classification",
+        LEAD_CLASSIFICATION_PROMPT,
+        (comm.raw_content || "").slice(0, 3000)
+      );
+    } catch {
+      // LLM extraction is optional — lead still created with basic info
+    }
   }
 
   const senderName = (comm.from_address || "").replace(/<.*>/, "").trim() || null;
@@ -61,9 +64,9 @@ export async function POST(request: Request) {
     source: "email",
     status: "draft",
     confidence: comm.classification === "new_lead" ? "high" : "medium",
-    name: extractedInfo.name || senderName,
+    name: (extractedInfo.name as string) || senderName,
     email: senderEmail,
-    phone: extractedInfo.phone || null,
+    phone: (extractedInfo.phone as string) || null,
     raw_source_content: (comm.raw_content || "").slice(0, 5000),
     extracted_info: extractedInfo,
     source_communication_id: comm.id,
@@ -72,6 +75,27 @@ export async function POST(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Log activity for lead creation
+  await createActivityEntry(
+    comm.agent_id,
+    "lead_detected",
+    `New lead: ${(extractedInfo.name as string) || senderName || senderEmail}`,
+    `Manually created from email`,
+    {
+      leadName: (extractedInfo.name as string) || senderName || senderEmail,
+      source: "email",
+      email: senderEmail,
+      phone: (extractedInfo.phone as string) || null,
+      budget: (extractedInfo.budget as string) || null,
+      area: (extractedInfo.area as string) || null,
+      leadId: lead.id,
+    },
+    {
+      communicationId: comm.id,
+      isActionRequired: true,
+    }
+  );
 
   return NextResponse.json({ ok: true, leadId: lead.id });
 }

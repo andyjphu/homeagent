@@ -334,7 +334,7 @@ export function LandingPage() {
       <nav className="fixed top-0 left-0 right-0 z-40 h-12 flex items-center justify-between px-5 sm:px-8 bg-[#0C0B0A]/70 backdrop-blur-sm">
         <div className="flex items-center gap-2.5">
           <Image
-            src="/foyerfindclear.svg"
+            src="/icon-2.0.1.svg"
             alt="FoyerFind"
             width={16}
             height={16}
@@ -344,6 +344,19 @@ export function LandingPage() {
           </span>
         </div>
         <div className="flex items-center gap-5">
+          <a
+            href="#pricing"
+            className="text-[11px] font-mono text-[#6A655F] hover:text-[#F0EBE3] transition-colors duration-150 uppercase tracking-[0.1em]"
+          >
+            Pricing
+          </a>
+          <a
+            href="#contact"
+            className="text-[11px] font-mono text-[#6A655F] hover:text-[#F0EBE3] transition-colors duration-150 uppercase tracking-[0.1em]"
+          >
+            Contact
+          </a>
+          <div className="w-px h-4 bg-[#F0EBE3]/[0.1]" />
           <Link
             href="/login"
             className="text-[11px] font-mono text-[#6A655F] hover:text-[#F0EBE3] transition-colors duration-150 uppercase tracking-[0.1em]"
@@ -354,7 +367,7 @@ export function LandingPage() {
             href="/signup"
             className="text-[11px] font-mono uppercase tracking-[0.1em] border border-[#F0EBE3]/20 hover:border-[#F0EBE3]/50 px-4 py-1.5 transition-colors duration-150"
           >
-            Enter
+            Sign up
           </Link>
         </div>
       </nav>
@@ -387,6 +400,14 @@ export function LandingPage() {
               background: "linear-gradient(to bottom, rgba(12,11,10,0.35) 0%, rgba(12,11,10,0.05) 30%, rgba(12,11,10,0.05) 50%, rgba(12,11,10,0.85) 100%)",
             }}
           />
+          {/* Film grain */}
+          <div
+            className="absolute inset-0 mix-blend-overlay opacity-[0.08]"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 2048 2048' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='1'/%3E%3C/svg%3E")`,
+            }}
+          />
+          {/* Warm halation */}
           <div
             className="absolute inset-0 opacity-[0.06]"
             style={{
@@ -420,7 +441,7 @@ export function LandingPage() {
           </h1>
 
           <p className="mt-5 sm:mt-6 text-[14px] sm:text-[15px] text-[#8A857F]">
-            Tired of scrolling Zillow?
+            Tired of back and forth? Wasted too much time on zillow?
           </p>
 
           <div className="mt-5 sm:mt-6 flex items-center gap-6">
@@ -439,17 +460,22 @@ export function LandingPage() {
           </div>
         </div>
 
+        {/* Corner text — bottom right */}
+        <span className="absolute bottom-5 sm:bottom-8 lg:bottom-10 right-5 sm:right-8 lg:right-10 text-[9px] font-mono text-[#4A4540] uppercase tracking-[0.2em] z-10">
+          Scroll for more
+        </span>
+
       </section>
 
       {/* ---- Floating Dashboard Demo — sits OVER the divider between hero and pricing ---- */}
-      <div id="demo" className="relative z-30 max-w-5xl px-5 sm:px-8" style={{ marginTop: "calc(-50vh)", marginBottom: "calc(-100px)", marginLeft: "calc(50% - 32rem + 7.5vw)", marginRight: "auto" }}>
+      <div id="demo" className="hidden sm:block relative z-30 max-w-5xl px-5 sm:px-8" style={{ marginTop: "calc(-50vh)", marginBottom: "calc(-100px)", marginLeft: "calc(50% - 32rem + 7.5vw)", marginRight: "auto" }}>
         {/* Shimmer wrapper */}
-        <div className="relative rounded-xl p-px shadow-[0_0_15px_rgba(196,168,130,0.05),0_0_30px_rgba(196,168,130,0.03),0_0_45px_rgba(196,168,130,0.02),0_0_60px_rgba(196,168,130,0.01)]">
+        <div className="relative rounded-xl p-px shadow-[0_0_6px_rgba(196,168,130,0.05),0_0_12px_rgba(196,168,130,0.03),0_0_18px_rgba(196,168,130,0.02),0_0_24px_rgba(196,168,130,0.01)]">
           {/* Rotating shimmer beam */}
           <div
             className="absolute inset-0 rounded-xl pointer-events-none"
             style={{
-              background: "conic-gradient(from var(--shimmer-angle, 0deg) at 50% 50%, transparent 0deg, transparent 340deg, rgba(240,235,227,0.12) 350deg, rgba(196,168,130,0.18) 355deg, rgba(240,235,227,0.12) 360deg)",
+              background: "conic-gradient(from var(--shimmer-angle, 0deg) at 50% 50%, transparent 0deg, transparent 70deg, rgba(240,235,227,0.15) 80deg, rgba(196,168,130,0.225) 85deg, rgba(240,235,227,0.15) 90deg, transparent 100deg, transparent 250deg, rgba(240,235,227,0.15) 260deg, rgba(196,168,130,0.225) 265deg, rgba(240,235,227,0.15) 270deg, transparent 280deg, transparent 360deg)",
               animation: "shimmer-rotate 30s linear infinite",
             }}
           />
@@ -479,8 +505,8 @@ export function LandingPage() {
                 <div className="w-2.5 h-2.5 rounded-full bg-[#F0EBE3]/[0.06]" />
               </div>
               <div className="w-px h-3.5 bg-[#F0EBE3]/[0.06] ml-1" />
-              <Image src="/foyerfindclear.svg" alt="FoyerFind" width={14} height={14} className="opacity-50" />
-              <span className="text-[11px] font-mono text-[#6A655F]">FoyerFind</span>
+              <Image src="/icon-2.0.1.svg" alt="FoyerFind" width={14} height={14} className="opacity-50" />
+              <span className="text-[11px] font-mono text-[#6A655F] uppercase tracking-[0.15em]">FoyerFind</span>
             </div>
             <span className="text-[9px] font-mono text-[#4A4540] uppercase tracking-[0.15em]">
               Interactive Demo
@@ -616,11 +642,30 @@ export function LandingPage() {
             ].map((item, i) => (
               <div
                 key={item.title}
-                className={`p-6 sm:p-8 lg:p-10 aspect-auto sm:aspect-square flex flex-col justify-between ${
+                className={`relative overflow-hidden p-6 sm:p-8 lg:p-10 aspect-auto sm:aspect-square flex flex-col justify-between ${
                   i > 0 ? "border-t sm:border-t-0 sm:border-l border-[#F0EBE3]/[0.06]" : ""
                 }`}
               >
-                <div>
+                {(i === 0 || i === 1 || i === 2) && (
+                  <div className="absolute inset-[10px] overflow-hidden rounded-sm">
+                    <div className="absolute -inset-6 blur-[12px]">
+                      <Image
+                        src={i === 0 ? "/standing.png" : i === 1 ? "/house.png" : "/phone.png"}
+                        alt=""
+                        fill
+                        className="object-cover object-center"
+                      />
+                    </div>
+                    <div className="absolute inset-0 bg-[#0C0B0A]/80" />
+                    <div
+                      className="absolute inset-0 mix-blend-overlay opacity-[1]"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 2048 2048' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='f${i}'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f${i})' opacity='1'/%3E%3C/svg%3E")`,
+                      }}
+                    />
+                  </div>
+                )}
+                <div className="relative z-10">
                   {"label" in item && item.label && (
                     <span className="text-[9px] font-mono text-[#4A4540] uppercase tracking-[0.2em] block mb-4">
                       {item.label}
@@ -630,7 +675,7 @@ export function LandingPage() {
                     {item.title}
                   </h3>
                 </div>
-                <p className="text-[13px] text-[#6A655F] leading-relaxed mt-6 sm:mt-0">
+                <p className="relative z-10 text-[13px] text-[#6A655F] leading-relaxed mt-6 sm:mt-0">
                   {item.description}
                 </p>
               </div>
@@ -814,61 +859,98 @@ export function LandingPage() {
             CONTACT
           </h2>
 
-          <div className="border border-[#F0EBE3]/[0.08] overflow-hidden max-w-3xl">
-            <iframe
-              src="https://calendly.com/andy-phtlabs/discovery?embed_type=Inline&background_color=0c0b0a&text_color=a19a92&primary_color=c4a882"
-              width="100%"
-              height="660"
-              title="Book a discovery call"
-              loading="lazy"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-              className="border-0"
-            />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 max-w-5xl">
+            {/* Email form */}
+            <div className="border border-[#F0EBE3]/[0.08] p-6 sm:p-8 lg:p-10">
+              <div className="text-[9px] font-mono text-[#4A4540] uppercase tracking-[0.2em] mb-6">
+                Send a message
+              </div>
+              <form
+                action="https://api.web3forms.com/submit"
+                method="POST"
+                className="space-y-5"
+              >
+                <input type="hidden" name="access_key" value="ee809368-55bc-43b2-871f-e0510885bae4" />
+                <div>
+                  <label className="text-[11px] font-mono text-[#6A655F] uppercase tracking-[0.1em] block mb-2">
+                    Name
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    required
+                    className="w-full bg-transparent border-b border-[#F0EBE3]/[0.1] focus:border-[#C4A882]/40 text-[14px] text-[#F0EBE3] py-2 outline-none transition-colors duration-200 placeholder:text-[#3A3530]"
+                    placeholder="Your name"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-mono text-[#6A655F] uppercase tracking-[0.1em] block mb-2">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    required
+                    className="w-full bg-transparent border-b border-[#F0EBE3]/[0.1] focus:border-[#C4A882]/40 text-[14px] text-[#F0EBE3] py-2 outline-none transition-colors duration-200 placeholder:text-[#3A3530]"
+                    placeholder="you@email.com"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-mono text-[#6A655F] uppercase tracking-[0.1em] block mb-2">
+                    Message
+                  </label>
+                  <textarea
+                    name="message"
+                    required
+                    rows={4}
+                    className="w-full bg-transparent border-b border-[#F0EBE3]/[0.1] focus:border-[#C4A882]/40 text-[14px] text-[#F0EBE3] py-2 outline-none transition-colors duration-200 resize-none placeholder:text-[#3A3530]"
+                    placeholder="How can we help?"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="text-[11px] font-mono uppercase tracking-[0.15em] border border-[#F0EBE3]/20 hover:border-[#F0EBE3]/50 px-6 py-2.5 transition-colors duration-200 mt-2"
+                >
+                  Send message
+                </button>
+              </form>
+            </div>
+
+            {/* Calendly */}
+            <div className="border border-[#F0EBE3]/[0.08] lg:border-l-0 overflow-hidden">
+              <div className="p-6 sm:p-8 lg:p-10 pb-0 sm:pb-0 lg:pb-0">
+                <div className="text-[9px] font-mono text-[#4A4540] uppercase tracking-[0.2em] mb-2">
+                  Or book a call
+                </div>
+              </div>
+              <iframe
+                src="https://calendly.com/andy-phtlabs/discovery?embed_type=Inline&background_color=0c0b0a&text_color=a19a92&primary_color=c4a882"
+                width="100%"
+                height="600"
+                title="Book a discovery call"
+                loading="lazy"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                className="border-0"
+              />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ============ PANEL 5: FOOTER ============ */}
-      <footer className="border-t border-[#F0EBE3]/[0.06] relative">
-        <div className="px-5 sm:px-8 py-16 sm:py-20">
-          <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-8">
-            <div>
-              <span
-                className={`${display.className} text-[2rem] sm:text-[2.5rem] leading-[0.85] block`}
-              >
-                FOYERFIND
-              </span>
-              <p className="text-[12px] text-[#4A4540] mt-3 font-mono uppercase tracking-[0.15em]">
-                The command center for buyer&apos;s agents
-              </p>
-            </div>
-            <div className="flex items-center gap-6">
-              <Link
-                href="/login"
-                className="text-[11px] font-mono text-[#4A4540] hover:text-[#F0EBE3] transition-colors duration-150 uppercase tracking-[0.1em]"
-              >
-                Agent Login
-              </Link>
-              <a
-                href="#contact"
-                className="text-[11px] font-mono text-[#4A4540] hover:text-[#F0EBE3] transition-colors duration-150 uppercase tracking-[0.1em]"
-              >
-                Contact
-              </a>
-              <a
-                href="#pricing"
-                className="text-[11px] font-mono text-[#4A4540] hover:text-[#F0EBE3] transition-colors duration-150 uppercase tracking-[0.1em]"
-              >
-                Pricing
-              </a>
-            </div>
-          </div>
-
-          <div className="mt-14 pt-6 border-t border-[#F0EBE3]/[0.06]">
-            <span className="text-[10px] font-mono text-[#3A3530] uppercase tracking-[0.15em]">
-              © 2024 FoyerFind
-            </span>
-          </div>
+      {/* ============ FOOTER ============ */}
+      <footer className="border-t border-[#F0EBE3]/[0.06] px-5 sm:px-8 py-6">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-mono text-[#3A3530] uppercase tracking-[0.15em]">
+            © 2026 phtlabs
+          </span>
+          <a
+            href="https://phtlabs.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] font-mono text-[#3A3530] hover:text-[#6A655F] uppercase tracking-[0.15em] transition-colors duration-150"
+          >
+            phtlabs.com
+          </a>
         </div>
       </footer>
     </div>

@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "FoyerFind",
   description: "The command center for buyer's agents",
+  icons: {
+    icon: "/icon-2.0.1.svg",
+  },
 };
 
 export const viewport: Viewport = {

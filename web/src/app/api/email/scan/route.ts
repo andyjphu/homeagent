@@ -7,6 +7,7 @@ import { llmJSON, isLLMAvailable } from "@/lib/llm/router";
 import { EMAIL_CLASSIFICATION_PROMPT, LEAD_CLASSIFICATION_PROMPT } from "@/lib/llm/prompts/lead-classification";
 import { classifyByKeywords } from "@/lib/email/keyword-classifier";
 import { createActivityEntry } from "@/lib/supabase/activity";
+import { extractAddresses } from "@/lib/research/address-extractor";
 
 interface ClassificationResult {
   classification: "deal_relevant" | "new_lead" | "noise" | "action_required";
@@ -293,11 +294,53 @@ export async function POST(request: Request) {
       .update({ gmail_last_scan_at: new Date().toISOString() })
       .eq("id", agent.id);
 
+    // Fire-and-forget: extract addresses from non-noise emails and kick off research
+    const nonNoiseEmails = newEmails.filter((_, i) => {
+      const c = classifications[i];
+      return c && c.classification !== "noise";
+    });
+
+    if (nonNoiseEmails.length > 0) {
+      // Run address extraction in background — don't block scan response
+      (async () => {
+        try {
+          for (const email of nonNoiseEmails) {
+            const addresses = await extractAddresses(email.subject, email.body);
+            if (addresses.length === 0) continue;
+
+            // Match sender to buyer for draft targeting
+            const senderEmail = extractEmail(email.from);
+            const matchedBuyer = email.direction === "inbound" ? buyerByEmail.get(senderEmail) : undefined;
+
+            // Fire off research pipeline via internal API
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+            fetch(`${appUrl}/api/research/address`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                agentId: agent.id,
+                addresses,
+                triggerType: "email",
+                triggerSourceId: email.id,
+                buyerEmail: matchedBuyer ? senderEmail : undefined,
+                buyerId: matchedBuyer?.id,
+              }),
+            }).catch((err) => {
+              console.error("[email-scan] Research pipeline fire-and-forget failed:", err);
+            });
+          }
+        } catch (err) {
+          console.error("[email-scan] Address extraction background task failed:", err);
+        }
+      })();
+    }
+
     return NextResponse.json({
       processed,
       total: newEmails.length,
       skipped: emails.length - newEmails.length,
       usedLLM: useLLM,
+      addressesDetected: nonNoiseEmails.length > 0,
       ...(errors.length > 0 ? { errors } : {}),
     });
   } catch (err) {

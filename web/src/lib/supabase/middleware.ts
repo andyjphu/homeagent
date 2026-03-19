@@ -47,7 +47,9 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/api/properties/search/status") ||
     request.nextUrl.pathname.startsWith("/api/properties/test-enrich") ||
     request.nextUrl.pathname.startsWith("/api/notifications/check-deadlines") ||
-    request.nextUrl.pathname.startsWith("/api/notifications/flush-queue");
+    request.nextUrl.pathname.startsWith("/api/notifications/flush-queue") ||
+    request.nextUrl.pathname.startsWith("/r/") ||
+    request.nextUrl.pathname.startsWith("/api/research/address");
 
   if (!user && !isPublicRoute && request.nextUrl.pathname !== "/") {
     const url = request.nextUrl.clone();

@@ -77,7 +77,8 @@ export type ActivityEventType =
   | "appraisal_received"
   | "deadline_approaching"
   | "deal_closed"
-  | "property_imported";
+  | "property_imported"
+  | "research_brief_created";
 
 export interface AgentPreferences {
   // Notifications
@@ -576,6 +577,44 @@ export interface Database {
           expires_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["enrichment_cache"]["Row"]>;
+      };
+      research_briefs: {
+        Row: {
+          id: string;
+          agent_id: string;
+          property_id: string;
+          buyer_id: string | null;
+          trigger_type: string;
+          trigger_source_id: string | null;
+          brief_content: string | null;
+          simplified_content: string | null;
+          enrichment_snapshot: Json;
+          confidence_level: string | null;
+          data_sources: string[];
+          comp_count: number;
+          delivered_via: string | null;
+          gmail_draft_id: string | null;
+          delivered_at: string | null;
+          viewed_at: string | null;
+          public_token: string;
+          created_at: string;
+        };
+        Insert: {
+          agent_id: string;
+          property_id: string;
+          trigger_type: string;
+          buyer_id?: string | null;
+          trigger_source_id?: string | null;
+          brief_content?: string | null;
+          simplified_content?: string | null;
+          enrichment_snapshot?: Json;
+          confidence_level?: string | null;
+          data_sources?: string[];
+          comp_count?: number;
+          delivered_via?: string | null;
+          gmail_draft_id?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["research_briefs"]["Row"]>;
       };
       notifications: {
         Row: {

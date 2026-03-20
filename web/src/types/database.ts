@@ -78,7 +78,8 @@ export type ActivityEventType =
   | "deadline_approaching"
   | "deal_closed"
   | "property_imported"
-  | "research_brief_created";
+  | "research_brief_created"
+  | "feedback_submitted";
 
 export interface AgentPreferences {
   // Notifications

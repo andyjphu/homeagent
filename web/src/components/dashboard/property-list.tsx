@@ -227,15 +227,49 @@ export function PropertyList({
                   />
                   <ComparisonRow
                     label="Walk Score"
-                    values={compareItems.map(
-                      (s) => s.properties?.walk_score
-                    )}
+                    values={compareItems.map((s) => {
+                      const e = s.properties?.enrichment_data;
+                      return e?.walkability?.walk_score ?? s.properties?.walk_score ?? null;
+                    })}
                   />
                   <ComparisonRow
                     label="Transit Score"
-                    values={compareItems.map(
-                      (s) => s.properties?.transit_score
-                    )}
+                    values={compareItems.map((s) => {
+                      const e = s.properties?.enrichment_data;
+                      return e?.walkability?.transit_score ?? s.properties?.transit_score ?? null;
+                    })}
+                  />
+                  <ComparisonRow
+                    label="Flood Risk"
+                    values={compareItems.map((s) => {
+                      const flood = s.properties?.enrichment_data?.flood;
+                      if (!flood) return null;
+                      return flood.risk_level === "low" ? "Low" :
+                             flood.risk_level === "moderate" ? "Moderate" :
+                             flood.risk_level === "high" ? "High" : flood.zone ?? null;
+                    })}
+                    mode="none"
+                  />
+                  <ComparisonRow
+                    label="Crime Safety"
+                    values={compareItems.map((s) => {
+                      const crime = s.properties?.enrichment_data?.crime;
+                      return crime?.safety_score ?? null;
+                    })}
+                  />
+                  <ComparisonRow
+                    label="Broadband (Mbps)"
+                    values={compareItems.map((s) => {
+                      const bb = s.properties?.enrichment_data?.broadband;
+                      return bb?.max_download_mbps ?? null;
+                    })}
+                  />
+                  <ComparisonRow
+                    label="Schools Nearby"
+                    values={compareItems.map((s) => {
+                      const schools = s.properties?.enrichment_data?.schools;
+                      return schools?.nearby?.length ?? null;
+                    })}
                   />
                   <ComparisonRow
                     label="HOA/mo"

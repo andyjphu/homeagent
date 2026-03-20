@@ -39,6 +39,7 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/api/calendar/callback") ||
     request.nextUrl.pathname.startsWith("/api/calendar/availability") ||
     request.nextUrl.pathname.startsWith("/buyer") ||
+    request.nextUrl.pathname.startsWith("/p/") ||
     request.nextUrl.pathname.startsWith("/d/") ||
     request.nextUrl.pathname.startsWith("/api/dashboard") ||
     request.nextUrl.pathname.startsWith("/api/calls/inbound") ||

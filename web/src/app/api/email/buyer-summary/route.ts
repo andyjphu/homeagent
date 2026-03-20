@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
   const intent = (buyer.intent_profile || {}) as any;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const dashboardUrl = `${appUrl}/d/${buyer.dashboard_token}`;
+  const dashboardUrl = `${appUrl}/p/${buyer.dashboard_token}`;
 
   // Build context for LLM
   const propertyLines = (scores || []).map((s: any, i: number) => {

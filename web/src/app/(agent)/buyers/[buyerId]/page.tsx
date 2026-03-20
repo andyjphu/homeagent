@@ -62,8 +62,8 @@ export default async function BuyerDetailPage({
 
   const intent = (buyer.intent_profile || {}) as any;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const dashboardUrl = `${appUrl}/d/${buyer.dashboard_token}`;
-  const intakeUrl = `${appUrl}/d/${buyer.dashboard_token}/intake`;
+  const dashboardUrl = `${appUrl}/p/${buyer.dashboard_token}`;
+  const intakeUrl = `${appUrl}/p/${buyer.dashboard_token}/intake`;
   const hasCompletedIntake = !!(intent.timeline || intent.preferred_areas?.length || intent.priorities_ranked?.length);
 
   return (

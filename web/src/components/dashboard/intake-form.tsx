@@ -125,7 +125,7 @@ export function IntakeForm({
               : " Your agent will use this to curate properties just for you."}
           </p>
           <div className="flex gap-3 justify-center">
-            <Link href={`/d/${dashboardToken}`}>
+            <Link href={`/p/${dashboardToken}`}>
               <Button>View Your Dashboard</Button>
             </Link>
             <Button variant="outline" onClick={() => setSubmitted(false)}>

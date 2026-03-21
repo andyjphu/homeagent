@@ -61,7 +61,7 @@ export function BuyerResearch({
     fetchTasks();
   }, [fetchTasks]);
 
-  // Poll for active task progress
+  // Poll for active task progress AND advance the pipeline
   useEffect(() => {
     const activeTask = tasks.find(
       (t) => t.status === "running" || t.status === "queued"
@@ -77,18 +77,36 @@ export function BuyerResearch({
       setInfo("AI scoring properties against your criteria...");
 
     const interval = setInterval(async () => {
+      // Advance the pipeline (enrichment/scoring) by calling process endpoint
+      if (activeTask.output_data?.pipeline_stage === "enrichment" || activeTask.output_data?.pipeline_stage === "scoring") {
+        try {
+          await fetch(`/api/dashboard/${dashboardToken}/research-process`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taskId: activeTask.id }),
+          });
+        } catch {
+          // Process call failed — will retry next interval
+        }
+      }
       await fetchTasks();
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [tasks, fetchTasks]);
+  }, [tasks, fetchTasks, dashboardToken]);
 
   // Detect when processing completes
   useEffect(() => {
     if (processing && !tasks.some((t) => t.status === "running" || t.status === "queued")) {
+      // Only check the most recent task (tasks are sorted by created_at desc)
+      const mostRecent = tasks[0];
       setProcessing(false);
-      setDone(true);
-      setInfo("Research complete! New properties have been added to your list.");
+      if (mostRecent?.status === "failed") {
+        setError(mostRecent.error_message ?? "Research failed — please try again.");
+      } else {
+        setDone(true);
+        setInfo("Research complete! New properties have been added to your list.");
+      }
     }
   }, [tasks, processing]);
 

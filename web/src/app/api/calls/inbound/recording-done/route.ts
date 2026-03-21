@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createActivityEntry } from "@/lib/supabase/activity";
+import { transcribeRecording } from "@/lib/deepgram/client";
+import { extractBuyerIntent } from "@/lib/services/call-intelligence";
 
 export const maxDuration = 300;
 
@@ -98,7 +100,7 @@ export async function POST(request: Request) {
 
   const publicUrl = urlData?.publicUrl || null;
 
-  // Create communication record — transcription will arrive via Twilio callback
+  // Create communication record
   const { data: comm, error: commError } = await admin
     .from("communications")
     .insert({
@@ -131,6 +133,7 @@ export async function POST(request: Request) {
   }
 
   // Create a basic lead immediately (will be enriched when transcription arrives)
+  let leadId: string | null = null;
   if (comm) {
     const { data: lead } = await admin
       .from("leads")
@@ -141,12 +144,14 @@ export async function POST(request: Request) {
         confidence: "low",
         name: `Caller ${callerPhone}`,
         phone: callerPhone,
-        raw_source_content: `Inbound call (${recordingDuration}s) — transcription pending via Twilio`,
+        raw_source_content: `Inbound call (${recordingDuration}s) — transcription pending`,
         extracted_info: {},
         source_communication_id: comm.id,
       })
       .select("id")
       .single();
+
+    leadId = lead?.id ?? null;
 
     if (lead) {
       await admin
@@ -171,6 +176,82 @@ export async function POST(request: Request) {
       { caller: callerPhone, duration: recordingDuration },
       { communicationId: comm.id }
     );
+  }
+
+  // --- Deepgram transcription (replaces Twilio callback) ---
+  // Run inline since maxDuration=300s gives us plenty of time
+  if (comm && publicUrl) {
+    try {
+      const result = await transcribeRecording(publicUrl);
+
+      if (result && result.transcript) {
+        console.log(
+          "[call-recording] Deepgram transcript received:",
+          result.transcript.slice(0, 100),
+          `(${result.speakers.length} speaker segments)`
+        );
+
+        // Extract buyer intent from transcript
+        const analysis = extractBuyerIntent(result.transcript, callerPhone);
+
+        // Update communication with transcript + analysis
+        await admin
+          .from("communications")
+          .update({
+            raw_content: result.transcript,
+            ai_analysis: {
+              ...analysis,
+              recording_sid: recordingSid,
+              call_sid: callSid,
+              storage_path: storagePath,
+              status: "completed",
+              source: "deepgram_nova3",
+              speakers: result.speakers,
+              duration_seconds: result.duration_seconds,
+            },
+            is_processed: true,
+            processed_at: new Date().toISOString(),
+          })
+          .eq("id", comm.id);
+
+        // Update the linked lead with extracted info
+        if (leadId) {
+          await admin
+            .from("leads")
+            .update({
+              confidence: analysis.confidence,
+              name:
+                analysis.caller_name ||
+                `Caller ${callerPhone}`,
+              raw_source_content: result.transcript,
+              extracted_info: {
+                budget_min: analysis.budget_range.min,
+                budget_max: analysis.budget_range.max,
+                beds: analysis.bedrooms,
+                baths: analysis.bathrooms,
+                areas: analysis.locations_mentioned,
+                timeline: analysis.timeline,
+                amenities: analysis.must_haves,
+                concerns: analysis.deal_breakers,
+                summary: analysis.summary,
+              },
+            })
+            .eq("id", leadId);
+
+          console.log(
+            "[call-recording] Lead updated via Deepgram:",
+            leadId,
+            "confidence:",
+            analysis.confidence
+          );
+        }
+      } else {
+        console.warn("[call-recording] Deepgram returned no transcript — Twilio callback will be fallback");
+      }
+    } catch (err) {
+      console.error("[call-recording] Deepgram transcription failed:", err);
+      // Twilio transcription callback is still configured as fallback
+    }
   }
 
   return new NextResponse(thankYouTwiml, {

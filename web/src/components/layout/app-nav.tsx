@@ -11,12 +11,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plug, Users, FileSearch, Inbox, Settings, LogOut, Menu } from "lucide-react";
+import { Plug, Users, FileSearch, Inbox, Settings, LogOut, Menu, Handshake } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const NAV_ITEMS = [
   { href: "/app/connections", label: "Connections", icon: Plug },
   { href: "/app/clients", label: "Clients", icon: Users },
+  { href: "/app/deals", label: "Deals", icon: Handshake },
   { href: "/app/research", label: "Research", icon: FileSearch },
   { href: "/app/inbox", label: "Inbox", icon: Inbox },
   { href: "/app/settings", label: "Settings", icon: Settings },

@@ -28,8 +28,10 @@ import {
   ChevronLeft,
   ChevronRight,
   ImageIcon,
+  Star,
 } from "lucide-react";
 import { toast } from "sonner";
+import Link from "next/link";
 import { EnrichmentBadges } from "@/components/enrichment/enrichment-badges";
 import { EnrichmentDetail } from "@/components/enrichment/enrichment-detail";
 
@@ -423,51 +425,6 @@ export function BuyerPropertyCard({
                 {property.listing_status}
               </Badge>
             )}
-            {walkScore != null && (
-              <Badge variant="outline" className="text-xs">
-                <Footprints className="h-3 w-3 mr-1" />
-                Walk: {walkScore}
-              </Badge>
-            )}
-            {transitScore != null && (
-              <Badge variant="outline" className="text-xs">
-                <Train className="h-3 w-3 mr-1" />
-                Transit: {transitScore}
-              </Badge>
-            )}
-            {floodData && (
-              <Badge
-                variant="outline"
-                className={`text-xs ${
-                  floodData.risk_level === "high"
-                    ? "border-red-300 text-red-700"
-                    : floodData.risk_level === "moderate"
-                      ? "border-amber-300 text-amber-700"
-                      : ""
-                }`}
-              >
-                Flood: {floodData.risk_level ?? floodData.zone}
-              </Badge>
-            )}
-            {enrichmentSchools.length > 0 && (
-              <Badge variant="outline" className="text-xs">
-                {enrichmentSchools.length} school{enrichmentSchools.length !== 1 ? "s" : ""} nearby
-              </Badge>
-            )}
-            {airQuality && (
-              <Badge
-                variant="outline"
-                className={`text-xs ${
-                  airQuality.aqi > 100
-                    ? "border-red-300 text-red-700"
-                    : airQuality.aqi > 50
-                      ? "border-amber-300 text-amber-700"
-                      : ""
-                }`}
-              >
-                AQI: {airQuality.aqi}
-              </Badge>
-            )}
             {property.days_on_market != null && (
               <Badge variant="outline" className="text-xs">
                 <Calendar className="h-3 w-3 mr-1" />
@@ -520,6 +477,12 @@ export function BuyerPropertyCard({
               )}
               {showDetails ? "Less" : "Details"}
             </Button>
+            <Link href={`/p/${dashboardToken}/feedback/${property.id}`}>
+              <Button variant="outline" size="sm">
+                <Star className="h-4 w-4 mr-1" />
+                Feedback
+              </Button>
+            </Link>
             <button
               onClick={onCompareToggle}
               className={`ml-auto flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border transition-colors ${

@@ -22,6 +22,8 @@ describe("Middleware Public Routes", () => {
     "/api/calendar/callback",
     "/api/calendar/availability/check",
     "/buyer/register",
+    "/p/abc123",
+    "/p/some-long-token/details",
     "/d/abc123",
     "/d/some-long-token/details",
     "/api/dashboard/token123/search",
@@ -65,6 +67,7 @@ describe("Middleware Public Routes", () => {
       pathname.startsWith("/api/calendar/callback") ||
       pathname.startsWith("/api/calendar/availability") ||
       pathname.startsWith("/buyer") ||
+      pathname.startsWith("/p/") ||
       pathname.startsWith("/d/") ||
       pathname.startsWith("/api/dashboard") ||
       pathname.startsWith("/api/calls/inbound") ||

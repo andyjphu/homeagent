@@ -79,7 +79,8 @@ export type ActivityEventType =
   | "deal_closed"
   | "property_imported"
   | "research_brief_created"
-  | "integration_synced";
+  | "integration_synced"
+  | "feedback_submitted";
 
 export interface AgentPreferences {
   // Notifications

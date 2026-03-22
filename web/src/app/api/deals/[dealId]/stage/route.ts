@@ -113,6 +113,15 @@ export async function PATCH(
           dealId,
         }
       );
+
+      // Fire-and-forget: create close-feedback Gmail draft
+      const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL || "";
+      fetch(`${origin}/api/deals/${dealId}/close-feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      }).catch((err) => {
+        console.error("[deals/stage] Close feedback trigger failed:", err);
+      });
     }
 
     // Delete calendar events when deal goes dead

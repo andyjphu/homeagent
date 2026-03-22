@@ -60,7 +60,7 @@ export async function GET(request: Request) {
       const buyer = deal.buyers as any;
       const property = deal.properties as any;
       const address = property?.address ?? "Unknown property";
-      const alertsSent = ((deal as any).alerts_sent ?? {}) as Record<string, boolean>;
+      const alertsSent = ((contingencies as any)._alerts_sent ?? {}) as Record<string, boolean>;
       let alertsUpdated = false;
 
       // Build deadline list: contingency deadlines + closing date

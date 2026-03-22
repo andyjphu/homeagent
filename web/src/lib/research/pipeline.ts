@@ -6,6 +6,7 @@ import { enrichProperty } from "@/lib/enrichment/service";
 import { generateBrief } from "./brief-generator";
 import { geocodioValidate, type ExtractedAddress } from "./address-extractor";
 import { createActivityEntry } from "@/lib/supabase/activity";
+import { pushBriefToIntegrations } from "@/lib/integrations/push";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -223,6 +224,11 @@ export async function processAddress(params: ProcessAddressParams): Promise<stri
       buyerId,
     }
   );
+
+  // 10. Push to connected integrations (fire-and-forget)
+  pushBriefToIntegrations(agentId, briefRecord.id).catch((err) => {
+    console.error("[research-pipeline] Integration push failed:", err);
+  });
 
   console.log(
     `[research-pipeline] Done: "${normalizedAddress}" — ${brief.confidence} confidence, ${brief.data_sources.length} sources, draft: ${!!draftId}`

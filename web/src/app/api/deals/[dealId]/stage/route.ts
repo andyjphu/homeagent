@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createActivityEntry } from "@/lib/supabase/activity";
 import { deleteDealCalendarEvents } from "@/lib/calendar/sync";
+import { pushDealStageToIntegrations } from "@/lib/integrations/push";
 import type { DealStage } from "@/types/database";
 
 const VALID_STAGES: DealStage[] = [
@@ -112,12 +113,26 @@ export async function PATCH(
           dealId,
         }
       );
+
+      // Fire-and-forget: create close-feedback Gmail draft
+      const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL || "";
+      fetch(`${origin}/api/deals/${dealId}/close-feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      }).catch((err) => {
+        console.error("[deals/stage] Close feedback trigger failed:", err);
+      });
     }
 
     // Delete calendar events when deal goes dead
     if (stage === "dead") {
       deleteDealCalendarEvents(deal.agent_id, dealId).catch(console.error);
     }
+
+    // Push stage change to connected integrations (fire-and-forget)
+    pushDealStageToIntegrations(deal.agent_id, dealId, stage, previousStage).catch(
+      (err) => console.error("[deals/stage] Integration push failed:", err)
+    );
 
     return NextResponse.json({ deal: updatedDeal });
   } catch (err) {

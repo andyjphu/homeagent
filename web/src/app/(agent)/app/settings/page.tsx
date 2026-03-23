@@ -9,6 +9,7 @@ import {
   CalendarDays,
   Palette,
   Mic,
+  FileText,
 } from "lucide-react";
 import { GmailConnectButton } from "@/components/email/gmail-connect-button";
 import { CalendarConnectButton } from "@/components/calendar/calendar-connect-button";
@@ -17,6 +18,7 @@ import { SignOutButton } from "@/components/settings/sign-out-button";
 import { VoiceToneForm } from "@/components/settings/voice-tone-form";
 import { BrandSettingsForm } from "@/components/settings/brand-settings-form";
 import { CreateBrokerageForm } from "@/components/team/create-brokerage-form";
+import { TemplatesManager } from "@/components/settings/templates-manager";
 import Link from "next/link";
 
 function StatusBadge({ connected }: { connected: boolean }) {
@@ -120,6 +122,22 @@ export default async function AppSettingsPage() {
           ) : (
             <CreateBrokerageForm />
           )}
+        </CardContent>
+      </Card>
+
+      {/* Communication Templates */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Communication Templates
+          </CardTitle>
+          <CardDescription>
+            Email and SMS templates with {"{{variable}}"} placeholders. System templates are shared; create custom ones for your workflow.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TemplatesManager />
         </CardContent>
       </Card>
 

@@ -11,12 +11,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plug, Users, FileSearch, Inbox, Settings, LogOut, Menu, Building2 } from "lucide-react";
-import { useState } from "react";
+import { Plug, Users, FileSearch, Inbox, Settings, LogOut, Menu, Handshake, Building2 } from "lucide-react";
+import { useState, useEffect } from "react";
 
 const NAV_ITEMS = [
   { href: "/app/connections", label: "Connections", icon: Plug },
   { href: "/app/clients", label: "Clients", icon: Users },
+  { href: "/app/deals", label: "Deals", icon: Handshake },
   { href: "/app/research", label: "Research", icon: FileSearch },
   { href: "/app/inbox", label: "Inbox", icon: Inbox },
   { href: "/app/settings", label: "Settings", icon: Settings },
@@ -34,6 +35,11 @@ export function AppNav({ agentName, agentEmail, brokerageName, brokerageLogoUrl,
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const navItems = isBrokerageAdmin
     ? [...NAV_ITEMS, { href: "/team", label: "Team", icon: Building2 }]
@@ -87,48 +93,56 @@ export function AppNav({ agentName, agentEmail, brokerageName, brokerageLogoUrl,
 
         {/* Right side */}
         <div className="flex items-center gap-2">
-          {/* Avatar / account menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="w-8 h-8 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center hover:opacity-90 transition-opacity">
-                {initials}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <div className="px-2 py-1.5">
-                <p className="text-sm font-medium truncate">{agentName}</p>
-                <p className="text-xs text-muted-foreground truncate">{agentEmail}</p>
-              </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/app/settings">Settings</Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {mounted ? (
+            <>
+              {/* Avatar / account menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="w-8 h-8 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center hover:opacity-90 transition-opacity">
+                    {initials}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <div className="px-2 py-1.5">
+                    <p className="text-sm font-medium truncate">{agentName}</p>
+                    <p className="text-xs text-muted-foreground truncate">{agentEmail}</p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/app/settings">Settings</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-          {/* Mobile menu */}
-          <DropdownMenu open={mobileOpen} onOpenChange={setMobileOpen}>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
-                <Menu className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 md:hidden">
-              {navItems.map(({ href, label, icon: Icon }) => (
-                <DropdownMenuItem key={href} asChild>
-                  <Link href={href} className="flex items-center gap-2">
-                    <Icon className="h-4 w-4" />
-                    {label}
-                  </Link>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+              {/* Mobile menu */}
+              <DropdownMenu open={mobileOpen} onOpenChange={setMobileOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="md:hidden">
+                    <Menu className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48 md:hidden">
+                  {navItems.map(({ href, label, icon: Icon }) => (
+                    <DropdownMenuItem key={href} asChild>
+                      <Link href={href} className="flex items-center gap-2">
+                        <Icon className="h-4 w-4" />
+                        {label}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center">
+              {initials}
+            </div>
+          )}
         </div>
       </div>
     </header>

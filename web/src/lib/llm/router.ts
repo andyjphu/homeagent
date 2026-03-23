@@ -19,7 +19,9 @@ export type LLMTask =
   | "seller_motivation"
   | "address_extraction"
   | "brief_generation"
-  | "brief_simplification";
+  | "brief_simplification"
+  | "follow_up_generation"
+  | "market_digest";
 
 type Provider = "groq" | "cerebras" | "gemini";
 
@@ -32,6 +34,7 @@ const FAST_TASKS: LLMTask[] = [
   "address_extraction",
   "brief_generation",
   "brief_simplification",
+  "follow_up_generation",
 ];
 
 function hasGroqKey(): boolean {

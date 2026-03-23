@@ -79,6 +79,8 @@ export type ActivityEventType =
   | "deal_closed"
   | "property_imported"
   | "research_brief_created"
+  | "integration_synced"
+  | "feedback_submitted"
   | "buyer_transferred";
 
 export type BrokerageRole = "admin" | "agent";
@@ -625,6 +627,31 @@ export interface Database {
           gmail_draft_id?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["research_briefs"]["Row"]>;
+      };
+      agent_integrations: {
+        Row: {
+          id: string;
+          agent_id: string;
+          provider: string;
+          access_token: string | null;
+          refresh_token: string | null;
+          token_expires_at: string | null;
+          settings: Json;
+          last_sync_at: string | null;
+          sync_errors: Json;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          agent_id: string;
+          provider: string;
+          access_token?: string | null;
+          refresh_token?: string | null;
+          token_expires_at?: string | null;
+          settings?: Json;
+          is_active?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["agent_integrations"]["Row"]>;
       };
       notifications: {
         Row: {

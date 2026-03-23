@@ -39,6 +39,7 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/api/calendar/callback") ||
     request.nextUrl.pathname.startsWith("/api/calendar/availability") ||
     request.nextUrl.pathname.startsWith("/buyer") ||
+    request.nextUrl.pathname.startsWith("/p/") ||
     request.nextUrl.pathname.startsWith("/d/") ||
     request.nextUrl.pathname.startsWith("/api/dashboard") ||
     request.nextUrl.pathname.startsWith("/api/calls/inbound") ||
@@ -49,7 +50,9 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/api/notifications/check-deadlines") ||
     request.nextUrl.pathname.startsWith("/api/notifications/flush-queue") ||
     request.nextUrl.pathname.startsWith("/r/") ||
-    request.nextUrl.pathname.startsWith("/api/research/address");
+    request.nextUrl.pathname.startsWith("/api/research/address") ||
+    request.nextUrl.pathname.startsWith("/api/research/follow-ups") ||
+    request.nextUrl.pathname.startsWith("/api/research/digest");
 
   if (!user && !isPublicRoute && request.nextUrl.pathname !== "/") {
     const url = request.nextUrl.clone();

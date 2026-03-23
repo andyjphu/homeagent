@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plug, Users, FileSearch, Inbox, Settings, LogOut, Menu, Handshake } from "lucide-react";
+import { Plug, Users, FileSearch, Inbox, Settings, LogOut, Menu, Handshake, Building2 } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const NAV_ITEMS = [
@@ -26,9 +26,12 @@ const NAV_ITEMS = [
 interface AppNavProps {
   agentName: string;
   agentEmail: string;
+  brokerageName?: string | null;
+  brokerageLogoUrl?: string | null;
+  isBrokerageAdmin?: boolean;
 }
 
-export function AppNav({ agentName, agentEmail }: AppNavProps) {
+export function AppNav({ agentName, agentEmail, brokerageName, brokerageLogoUrl, isBrokerageAdmin }: AppNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -37,6 +40,10 @@ export function AppNav({ agentName, agentEmail }: AppNavProps) {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const navItems = isBrokerageAdmin
+    ? [...NAV_ITEMS, { href: "/team", label: "Team", icon: Building2 }]
+    : NAV_ITEMS;
 
   async function handleSignOut() {
     const supabase = createClient() as any;
@@ -55,13 +62,18 @@ export function AppNav({ agentName, agentEmail }: AppNavProps) {
     <header className="border-b bg-card sticky top-0 z-50">
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
         {/* Logo */}
-        <Link href="/app/clients" className="font-semibold text-sm shrink-0">
-          FoyerFind
+        <Link href="/app/clients" className="flex items-center gap-2 shrink-0">
+          {brokerageLogoUrl && (
+            <img src={brokerageLogoUrl} alt="" className="h-6 w-6 rounded object-cover" />
+          )}
+          <span className="font-semibold text-sm">
+            {brokerageName || "FoyerFind"}
+          </span>
         </Link>
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-1 flex-1">
-          {NAV_ITEMS.map(({ href, label }) => {
+          {navItems.map(({ href, label }) => {
             const active = pathname.startsWith(href);
             return (
               <Link
@@ -115,7 +127,7 @@ export function AppNav({ agentName, agentEmail }: AppNavProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48 md:hidden">
-                  {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
+                  {navItems.map(({ href, label, icon: Icon }) => (
                     <DropdownMenuItem key={href} asChild>
                       <Link href={href} className="flex items-center gap-2">
                         <Icon className="h-4 w-4" />

@@ -11,6 +11,7 @@ import { OfferStrategyPanel } from "@/components/deals/offer-strategy-panel";
 import { AddOfferForm } from "@/components/deals/add-offer-form";
 import { ContractDatesForm } from "@/components/deals/contract-dates-form";
 import { ContractTimeline } from "@/components/deals/contract-timeline";
+import { CommissionSection } from "@/components/deals/commission-section";
 
 const UNDER_CONTRACT_STAGES = [
   "under_contract",
@@ -150,6 +151,9 @@ export default async function DealDetailPage({
               </CardContent>
             </Card>
           </div>
+
+          {/* Commission tracking */}
+          <CommissionSection dealId={deal.id} agreedPrice={deal.agreed_price} />
 
           {/* Contract Timeline on Overview when under contract */}
           {isUnderContract && (

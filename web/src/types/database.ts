@@ -78,7 +78,11 @@ export type ActivityEventType =
   | "deadline_approaching"
   | "deal_closed"
   | "property_imported"
-  | "research_brief_created";
+  | "research_brief_created"
+  | "buyer_transferred";
+
+export type BrokerageRole = "admin" | "agent";
+export type CommissionType = "percentage" | "flat_fee";
 
 export interface AgentPreferences {
   // Notifications
@@ -136,6 +140,11 @@ export interface Database {
           communication_tone: string;
           negotiation_style_profile: Json;
           timezone: string;
+          plan: string;
+          plan_expires_at: string | null;
+          brand_settings: Json;
+          voice_tone: string;
+          brokerage_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -146,6 +155,7 @@ export interface Database {
           full_name: string;
           phone?: string | null;
           brokerage?: string | null;
+          brokerage_id?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["agents"]["Row"]>;
       };
@@ -653,6 +663,84 @@ export interface Database {
           scheduled_for?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["notifications"]["Row"]>;
+      };
+      brokerages: {
+        Row: {
+          id: string;
+          name: string;
+          logo_url: string | null;
+          brand_colors: Json;
+          custom_domain: string | null;
+          settings: Json;
+          plan: string;
+          created_at: string;
+        };
+        Insert: {
+          name: string;
+          logo_url?: string | null;
+          brand_colors?: Json;
+          custom_domain?: string | null;
+          settings?: Json;
+          plan?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["brokerages"]["Row"]>;
+      };
+      brokerage_agents: {
+        Row: {
+          brokerage_id: string;
+          agent_id: string;
+          role: BrokerageRole;
+          joined_at: string;
+        };
+        Insert: {
+          brokerage_id: string;
+          agent_id: string;
+          role?: BrokerageRole;
+        };
+        Update: Partial<Database["public"]["Tables"]["brokerage_agents"]["Row"]>;
+      };
+      deal_commissions: {
+        Row: {
+          id: string;
+          deal_id: string;
+          agent_id: string;
+          commission_type: CommissionType;
+          commission_value: number;
+          expected_amount: number | null;
+          paid_amount: number | null;
+          paid_at: string | null;
+          notes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          deal_id: string;
+          agent_id: string;
+          commission_type: CommissionType;
+          commission_value: number;
+          expected_amount?: number | null;
+          paid_amount?: number | null;
+          notes?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["deal_commissions"]["Row"]>;
+      };
+      brokerage_invites: {
+        Row: {
+          id: string;
+          brokerage_id: string;
+          email: string;
+          invite_code: string;
+          invited_by: string;
+          accepted_at: string | null;
+          expires_at: string;
+          created_at: string;
+        };
+        Insert: {
+          brokerage_id: string;
+          email: string;
+          invited_by: string;
+          invite_code?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["brokerage_invites"]["Row"]>;
       };
     };
   };

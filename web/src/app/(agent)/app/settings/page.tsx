@@ -16,6 +16,8 @@ import { ProfileForm } from "@/components/settings/profile-form";
 import { SignOutButton } from "@/components/settings/sign-out-button";
 import { VoiceToneForm } from "@/components/settings/voice-tone-form";
 import { BrandSettingsForm } from "@/components/settings/brand-settings-form";
+import { CreateBrokerageForm } from "@/components/team/create-brokerage-form";
+import Link from "next/link";
 
 function StatusBadge({ connected }: { connected: boolean }) {
   if (connected) {
@@ -92,6 +94,32 @@ export default async function AppSettingsPage() {
         </CardHeader>
         <CardContent>
           <BrandSettingsForm brandSettings={agent.brand_settings ?? {}} />
+        </CardContent>
+      </Card>
+
+      {/* Brokerage / Team */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            Team &amp; Brokerage
+          </CardTitle>
+          <CardDescription>
+            Manage your brokerage team, compliance, and shared branding.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {agent.brokerage_id ? (
+            <div className="space-y-2">
+              <p className="text-sm">
+                You&apos;re part of a brokerage.{" "}
+                <Link href="/team" className="text-primary hover:underline font-medium">
+                  Go to Team Dashboard
+                </Link>
+              </p>
+            </div>
+          ) : (
+            <CreateBrokerageForm />
+          )}
         </CardContent>
       </Card>
 

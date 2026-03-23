@@ -104,14 +104,40 @@ export default async function BuyerDashboardPage({
   const { dashboardToken } = await params;
   const supabase = createAdminClient() as any;
 
-  // Validate token and get buyer with agent info
+  // Validate token and get buyer with agent info + brokerage
   const { data: buyer } = await supabase
     .from("buyers")
-    .select("*, agents(full_name)")
+    .select("*, agents(full_name, brokerage_id, brand_settings)")
     .eq("dashboard_token", dashboardToken)
     .single();
 
   if (!buyer) notFound();
+
+  // Resolve white-label branding: agent brand_settings > brokerage brand_colors > default
+  const agentData = buyer.agents as any;
+  let portalBrandName = "FoyerFind";
+  let portalLogoUrl: string | null = null;
+
+  if (agentData?.brokerage_id) {
+    const { data: brokerage } = await supabase
+      .from("brokerages")
+      .select("name, logo_url, brand_colors")
+      .eq("id", agentData.brokerage_id)
+      .single();
+
+    if (brokerage) {
+      const agentBrand = (agentData.brand_settings || {}) as Record<string, unknown>;
+      const hasAgentBrand = agentBrand.logoUrl || agentBrand.brandName;
+
+      if (hasAgentBrand) {
+        portalBrandName = (agentBrand.brandName as string) || brokerage.name || "FoyerFind";
+        portalLogoUrl = (agentBrand.logoUrl as string) || brokerage.logo_url || null;
+      } else {
+        portalBrandName = brokerage.name || "FoyerFind";
+        portalLogoUrl = brokerage.logo_url || null;
+      }
+    }
+  }
 
   // Update visit count and log dashboard view for agent intelligence
   await supabase
@@ -168,11 +194,15 @@ export default async function BuyerDashboardPage({
         <div className="relative max-w-2xl mx-auto px-4 py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                <Building2 className="h-4 w-4 text-primary-foreground" />
-              </div>
+              {portalLogoUrl ? (
+                <img src={portalLogoUrl} alt="" className="h-8 w-8 rounded-lg object-cover" />
+              ) : (
+                <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+                  <Building2 className="h-4 w-4 text-primary-foreground" />
+                </div>
+              )}
               <div>
-                <p className="font-semibold text-sm">FoyerFind</p>
+                <p className="font-semibold text-sm">{portalBrandName}</p>
                 <p className="text-xs text-muted-foreground">
                   Your Home Search
                   {agentName && (
@@ -250,6 +280,13 @@ export default async function BuyerDashboardPage({
           </Suspense>
         </div>
       </main>
+
+      {/* Powered by footer */}
+      <footer className="border-t py-4 text-center">
+        <p className="text-xs text-muted-foreground">
+          Powered by <span className="font-medium">FoyerFind</span>
+        </p>
+      </footer>
     </div>
   );
 }
